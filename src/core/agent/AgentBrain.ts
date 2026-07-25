@@ -1,5 +1,6 @@
 import { LLMMessage } from '../llm/types';
 import { GeminiProvider } from '../llm/providers/GeminiProvider';
+import { ClaudeProvider } from '../llm/providers/ClaudeProvider';
 import { useUiStore } from '../../integration/store/uiStore';
 import { useCoreStore } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
@@ -38,8 +39,8 @@ export class AgentBrain {
       this.refreshFromStore();
       const core = useCoreStore.getState();
       const llmConfig = useUiStore.getState().llmConfig;
-      if (!llmConfig.apiKey) throw new Error('Gemini API key is required');
-      const provider = new GeminiProvider(llmConfig.apiKey);
+      if (!llmConfig.apiKey) throw new Error('Claude API key is required');
+      const provider = new ClaudeProvider(llmConfig.apiKey);
       const model = this.host.data.model || llmConfig.model;
       const teamId = useTeamStore.getState().selectedAgentSetId;
       const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === teamId)
@@ -66,6 +67,11 @@ export class AgentBrain {
 
       // 2. Prepare context
       let messages: LLMMessage[] = this.history.slice(-10);
+      // Never let a truncated window start with an orphaned tool_result
+      // (its matching tool_use would have been cut off).
+      while (messages.length > 0 && messages[0].role === 'tool') {
+        messages = messages.slice(1);
+      }
 
       // In chat mode, ensure the latest user message also carries images if it's the brief phase
       if (options.isChat && hasVisionSupport && core.referenceImages.length > 0) {
@@ -112,7 +118,7 @@ export class AgentBrain {
       const text = response.content || '';
       const toolCalls = response.tool_calls?.map(tc => {
         try {
-          return { name: tc.function.name, args: JSON.parse(tc.function.arguments) };
+          return { id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) };
         } catch (e) {
           console.error('[AgentBrain] Failed to parse tool arguments', tc.function.arguments);
           return null;
@@ -125,11 +131,11 @@ export class AgentBrain {
       const isBrief = toolCalls.some(tc => tc.name === 'set_user_brief');
       const isResolution = false;
       let finalContent = text;
-      const isMalformed = response.finishReason === 'MALFORMED_FUNCTION_CALL';
+      const isRefusal = response.finishReason === 'refusal';
 
-      if (isMalformed) {
-        finalContent = 'ERROR: Malformed function call. Please try again.';
-        console.warn(`[AgentBrain:${this.host.data.name}] Malformed function call detected.`);
+      if (isRefusal) {
+        finalContent = 'ERROR: The model declined to respond to this request. Please rephrase and try again.';
+        console.warn(`[AgentBrain:${this.host.data.name}] Refusal detected.`);
       } else if (hasToolCallsOnly && !isInternalTrigger) {
         finalContent = isBrief
           ? "Project brief set. Let's begin!"
@@ -156,12 +162,20 @@ export class AgentBrain {
       this.syncToStore();
 
       // 7. Process Actions (Tools)
+      // Every tool_use block sent to Claude must be answered with a matching
+      // tool_result in the next message, or the next API call is rejected.
       for (const tc of toolCalls) {
         const handled = ToolRegistry.process(this.host as any, tc);
+        this.history.push({
+          role: 'tool',
+          name: tc.id,
+          content: handled ? 'OK' : 'Tool call was not handled.'
+        });
         if (tc.name === 'deliver_project' && handled) {
           this.handleFinalAssetGeneration(tc.args.output);
         }
       }
+      if (toolCalls.length > 0) this.syncToStore();
 
       return { text, toolCalls };
     } catch (error) {
@@ -234,9 +248,18 @@ export class AgentBrain {
     core.setReviewingOutput(false);
 
     try {
+      if (activeTeam.outputType === 'text') {
+        // For text, the prompt is the final output (produced by the Claude "brain")
+        core.setFinalOutput(prompt);
+        core.setPhase('done');
+        core.setFinalOutputOpen(true);
+        core.setIsGeneratingAsset(false);
+        return;
+      }
+
       const llmConfig = useUiStore.getState().llmConfig;
-      if (!llmConfig.apiKey) throw new Error('Gemini API key is required');
-      const provider = new GeminiProvider(llmConfig.apiKey) as any;
+      if (!llmConfig.geminiApiKey) throw new Error('Gemini API key is required for image/music/video generation');
+      const provider = new GeminiProvider(llmConfig.geminiApiKey) as any;
       const model = options.model || activeTeam.outputModel || llmConfig.model;
 
       core.addLogEntry({
@@ -266,13 +289,6 @@ export class AgentBrain {
         }, options, core.referenceImages);
         assetContent = result.videoUrl || '';
         usage = result.usage;
-      } else if (activeTeam.outputType === 'text') {
-        // For text, the prompt is the final output
-        core.setFinalOutput(prompt);
-        core.setPhase('done');
-        core.setFinalOutputOpen(true);
-        core.setIsGeneratingAsset(false);
-        return;
       }
 
       core.addResponseLog({

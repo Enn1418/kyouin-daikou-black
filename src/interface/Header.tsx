@@ -28,11 +28,14 @@ const Header: React.FC = () => {
     <header className="h-14 border-b border-zinc-100 flex items-center justify-between px-6 bg-white shrink-0 relative z-40">
       {/* Left: Project Title */}
       <div className="flex items-center min-w-0">
-        <img
-          src="images/the-delegation.svg"
-          alt="The Delegation"
-          className="h-10 w-auto shrink-0"
-        />
+        <div
+          className="h-10 flex items-center px-4 rounded-xl bg-darkDelegation shrink-0"
+          aria-label="教員代行努ブラック"
+        >
+          <span className="text-white font-black text-sm tracking-tight whitespace-nowrap">
+            教員代行努ブラック
+          </span>
+        </div>
 
         <div className="flex items-center gap-3 self-start mt-3 ml-2 min-w-0">
           <div className="flex items-center gap-1 shrink-0">

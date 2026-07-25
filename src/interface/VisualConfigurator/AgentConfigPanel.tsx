@@ -182,7 +182,7 @@ export const AgentConfigPanel: React.FC<AgentConfigPanelProps> = ({
 
               {renderField('LLM Model', <Cpu size={12} />, isView ? (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-mono text-zinc-600 w-fit lowercase">
-                  {editData.model || 'gemini-3-flash-preview'}
+                  {editData.model || 'claude-sonnet-5'}
                 </div>
               ) : (
                 <select
@@ -192,7 +192,7 @@ export const AgentConfigPanel: React.FC<AgentConfigPanelProps> = ({
                 >
                   {availableModels.map(m => <option key={m} value={m} className="lowercase">{m}</option>)}
                 </select>
-              ), 'The specific Gemini model this agent will use.')}
+              ), 'The specific Claude model this agent will use.')}
             </div>
 
             {/* Content Group */}

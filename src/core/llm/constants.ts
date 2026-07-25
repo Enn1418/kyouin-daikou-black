@@ -1,5 +1,5 @@
 export const DEFAULT_MODELS = {
-  text: 'gemini-3-flash-preview',
+  text: 'claude-sonnet-5',
   image: 'gemini-3.1-flash-image-preview',
   music: 'lyria-3-clip-preview',
   video: 'veo-3.1-lite-generate-preview'
@@ -7,9 +7,9 @@ export const DEFAULT_MODELS = {
 
 export const AVAILABLE_MODELS = {
   text: [
-    'gemini-3-flash-preview',
-    'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite-preview'
+    'claude-sonnet-5',
+    'claude-opus-5',
+    'claude-haiku-4-5'
   ],
   image: [
     'gemini-3.1-flash-image-preview',

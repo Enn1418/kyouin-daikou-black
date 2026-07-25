@@ -1,6 +1,6 @@
 import { ExternalLink, X, Sparkles } from 'lucide-react';
 import React from 'react';
-import { GEMINI_PRICING } from '../core/llm/pricing';
+import { MODEL_PRICING } from '../core/llm/pricing';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
 interface PricingModalProps {
@@ -8,10 +8,10 @@ interface PricingModalProps {
 }
 
 const PricingModal: React.FC<PricingModalProps> = ({ onClose }) => {
-  const reasoningModels = Object.entries(GEMINI_PRICING)
+  const reasoningModels = Object.entries(MODEL_PRICING)
     .filter(([_, p]) => p.inputPer1M !== undefined)
     .sort(([a], [b]) => (a === DEFAULT_MODELS.text ? -1 : (b === DEFAULT_MODELS.text ? 1 : 0)));
-  const outputModels = Object.entries(GEMINI_PRICING).filter(([_, p]) => p.inputPer1M === undefined);
+  const outputModels = Object.entries(MODEL_PRICING).filter(([_, p]) => p.inputPer1M === undefined);
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-6 pointer-events-auto overflow-hidden">
@@ -34,20 +34,31 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose }) => {
           {/* Header */}
           <div className="mb-10 text-center">
             <h2 className="text-3xl font-black text-darkDelegation tracking-tight mb-2">
-              Gemini API Pricing
+              Model Pricing
             </h2>
             <div className="flex flex-col items-center gap-3">
-              <a
-                href="https://ai.google.dev/gemini-api/docs/pricing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 hover:border-blue-200 rounded-full transition-all duration-200"
-              >
-                <span className="text-[11px] font-black uppercase tracking-wider text-blue-600">Official Pricing Page</span>
-                <ExternalLink size={11} className="text-blue-500" />
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://platform.claude.com/docs/en/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 hover:border-blue-200 rounded-full transition-all duration-200"
+                >
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-600">Claude Pricing</span>
+                  <ExternalLink size={11} className="text-blue-500" />
+                </a>
+                <a
+                  href="https://ai.google.dev/gemini-api/docs/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 hover:border-emerald-200 rounded-full transition-all duration-200"
+                >
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600">Gemini Pricing</span>
+                  <ExternalLink size={11} className="text-emerald-500" />
+                </a>
+              </div>
               <p className="text-zinc-500 text-xs font-medium leading-relaxed">
-                Official Google Gemini API pricing (March 2026).
+                Reasoning models run on Claude. Image, music, and video models run on Gemini.
               </p>
             </div>
           </div>

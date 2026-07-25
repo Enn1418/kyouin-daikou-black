@@ -25,12 +25,14 @@ const InfoModal: React.FC<InfoModalProps> = ({ onClose }) => {
 
         <div className="max-w-md mx-auto">
           <div className="flex justify-center mb-8">
-            <img
-              src="images/the-delegation.svg"
-              alt="The Delegation Logo"
-              width={256}
-              className="h-auto"
-            />
+            <div
+              className="flex items-center px-6 py-3 rounded-2xl bg-darkDelegation"
+              aria-label="教員代行努ブラック"
+            >
+              <span className="text-white font-black text-2xl tracking-tight whitespace-nowrap">
+                教員代行努ブラック
+              </span>
+            </div>
           </div>
 
           <h2 className="text-3xl font-black text-darkDelegation leading-[1.2] mb-6 tracking-tight text-center">
@@ -39,7 +41,7 @@ const InfoModal: React.FC<InfoModalProps> = ({ onClose }) => {
 
           <div className="space-y-6 text-zinc-500 text-[15px] leading-relaxed text-center sm:text-left">
             <p>
-              The Delegation is an experimental workspace where you stop prompting and start delegating to a team of autonomous AI agents in a living 3D office.
+              教員代行努ブラックは、プロンプトを書く代わりに、生きた3Dオフィスで自律的なAIエージェントのチームに業務を委任していく実験的なワークスペースです。
             </p>
             <p>
               Designed for enthusiasts, educators, and creative developers to understand multi-agent collaboration, making complex AI processes transparent, collaborative, and human-centered.

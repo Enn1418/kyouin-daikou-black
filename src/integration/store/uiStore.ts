@@ -38,8 +38,11 @@ export const useUiStore = create<CharacterState>()(
         const saved = localStorage.getItem('byok-config');
         if (saved) return JSON.parse(saved);
       } catch { }
+      // Dev convenience: fall back to keys set in .env (see .env.example).
+      // Only used when nothing has been saved yet via the BYOK modal.
       return {
-        apiKey: '',
+        apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
+        geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
         model: DEFAULT_MODELS.text
       };
     })(),

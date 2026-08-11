@@ -141,7 +141,7 @@ def render(letter_path, children, out_path=None):
     draw = ImageDraw.Draw(img)
 
     y = TOP_PAD
-    draw.text((MARGIN, y), f"{header_date}  {children[target].call_name}へ",
+    draw.text((MARGIN, y), f"{header_date}  {children[target].call_name}",
               font=head_font, fill=0)
     y += HEAD_SIZE + 6
     draw.line((MARGIN, y, WIDTH - MARGIN, y), fill=0, width=1)

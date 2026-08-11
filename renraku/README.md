@@ -25,6 +25,11 @@ cp roster.example.csv roster.private.csv
 pip install Pillow
 ```
 
+> **⚠ 実名を書くのは `roster.private.csv` です。`roster.example.csv`（見本）には絶対に書かないでください。**
+> 見本のほうは Git で管理されており、**GitHubに公開されます**。
+> 書き込む前に、ファイル名が `.private.` になっていることを必ず確認してください。
+> 誤って見本のほうを使うと、実行時に警告が出ます。
+
 ### 名簿の書き方
 
 ```csv

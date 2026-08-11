@@ -51,6 +51,13 @@ def load(path=None):
     if not children:
         sys.exit(f"名簿に児童が1人も登録されていません: {path}")
 
+    if "example" in path.name:
+        print(
+            f"  ⚠ 見本ファイル ({path.name}) を使っています。\n"
+            f"    このファイルは Git で公開されます。実名は roster.private.csv に書いてください。",
+            file=sys.stderr,
+        )
+
     _warn_ambiguous(children)
     return children
 

@@ -22,6 +22,7 @@ import path from 'node:path';
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
 import { mergeMemoryNote } from './memory.mjs';
+import { scaffold } from './scaffold.mjs';
 import { BASE_CSS, TEMPLATE_CSS, TEMPLATE_NAMES, buildHtml } from './templates.mjs';
 
 const ALLOWED_EXTENSIONS = new Set(['.md', '.txt', '.csv', '.json', '.html']);
@@ -38,6 +39,7 @@ function parseArgs(argv) {
     if (argv[i] === '--root') args.root = next();
     else if (argv[i] === '--port') args.port = Number(next());
     else if (argv[i] === '--token') args.token = next();
+    else if (argv[i] === '--init') args.init = true;
   }
   return args;
 }
@@ -306,15 +308,24 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(args.port, '127.0.0.1', async () => {
-  let rootExists = true;
+  // フォルダがまだ無い（または空）なら、雛形を用意してから始める。
+  // Windows の拡張子と文字コードの罠を担任に踏ませないため。
+  let created = [];
   try {
-    await fs.access(ROOT);
-  } catch {
-    rootExists = false;
+    ({ created } = await scaffold(ROOT, { force: args.init }));
+  } catch (e) {
+    console.error(`  教材フォルダを用意できませんでした: ${e.message}`);
   }
+
   console.log('');
   console.log('  教材フォルダ ブリッジを起動しました');
-  console.log(`  フォルダ : ${ROOT}${rootExists ? '' : '  ← まだ存在しません。作成してください'}`);
+  console.log(`  フォルダ : ${ROOT}`);
+  if (created.length) {
+    console.log('');
+    console.log('  雛形を作りました:');
+    created.forEach((c) => console.log(`    ${c}`));
+    console.log('    → 00_共通/学級の実態.md を実際の学級に合わせて書き換えてください');
+  }
   console.log(`  URL      : http://localhost:${args.port}`);
   console.log(`  トークン : ${TOKEN}`);
   console.log('');

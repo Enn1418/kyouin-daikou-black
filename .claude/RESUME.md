@@ -35,6 +35,8 @@
 - `ToolRegistry.process` が文字列も返せるようになり、`AgentBrain` がそれを tool_result に渡す
 - `BYOKModal` に「教材フォルダ（任意）」欄と接続確認ボタン
 - 起動: `npm run bridge -- --root "D:\kyouin"` → 表示された URL とトークンをアプリの設定に貼る
+- `bridge/scaffold.mjs` — フォルダが無い／空のときだけ雛形を作る（UTF-8 で書くので文字化けしない）。
+  空でないフォルダには触らない。`--init` で足りないものだけ補完。既存ファイルは上書きしない
 
 ## 完了済み（ドリル生成）
 

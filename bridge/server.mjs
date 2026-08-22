@@ -16,7 +16,7 @@
  */
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { promises as fs } from 'node:fs';
+import { promises as fs, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
@@ -46,7 +46,38 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(2));
 const ROOT = path.resolve(args.root);
-const TOKEN = args.token || randomBytes(16).toString('hex');
+const TOKEN_FILE = '.bridge-token';
+
+/**
+ * トークンを教材フォルダの中に持たせる。
+ *
+ * 起動のたびに作り直すと、担任は再起動のたびにアプリの設定を貼り直すことになる。
+ * 実際それで詰まったので、一度作ったものを使い回す。ドット始まりなので一覧にも出ず、
+ * 拡張子ホワイトリストにも当たらないため、ブリッジ越しには読めない。
+ * `--token` か環境変数が指定されていればそちらが優先。
+ */
+function resolveToken(explicit) {
+  if (explicit) return explicit;
+  const file = path.join(ROOT, TOKEN_FILE);
+  try {
+    if (existsSync(file)) {
+      const saved = readFileSync(file, 'utf8').trim();
+      if (/^[0-9a-f]{32}$/.test(saved)) return saved;
+    }
+  } catch {
+    // 読めなければ作り直す
+  }
+  const token = randomBytes(16).toString('hex');
+  try {
+    mkdirSync(ROOT, { recursive: true });
+    writeFileSync(file, token + '\n', { mode: 0o600 });
+  } catch {
+    // 書けなくても今回の起動では使える（次回また変わる）
+  }
+  return token;
+}
+
+const TOKEN = resolveToken(args.token);
 
 /** root 配下に解決されることを保証する。外に出るパスは例外。 */
 function safeResolve(relative) {

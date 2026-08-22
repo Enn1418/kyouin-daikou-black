@@ -97,6 +97,20 @@ export async function checkBridge(): Promise<boolean> {
   }
 }
 
+/**
+ * 起動時の自動接続。
+ *
+ * 接続状態は localStorage に残さない（残すと、ブリッジを止めたまま開いたときに
+ * 繋がっているつもりで動いてしまう）。代わりに、URL とトークンが保存されていれば
+ * 起動のたびに確かめ直す。担任が毎回「接続を確認」を押さなくて済むようにするため。
+ */
+export async function autoConnectBridge(): Promise<void> {
+  const { url, token, status } = getBridgeConfig();
+  if (!url || !token) return;
+  if (status === 'checking' || status === 'connected') return;
+  await checkBridge();
+}
+
 export const bridge = {
   listFiles: (dir: string) =>
     request<{ dir: string; entries: FileEntry[]; truncated: boolean }>('GET', '/files', { query: { dir } }),

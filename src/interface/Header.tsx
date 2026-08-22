@@ -1,6 +1,7 @@
-import { Info, KeyRound, Maximize2, Settings } from 'lucide-react';
+import { FolderOpen, Info, KeyRound, Maximize2, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import packageJson from '../../package.json';
+import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useCoreStore } from '../integration/store/coreStore';
 import { useUiStore } from '../integration/store/uiStore';
 import BYOKModal from './BYOKModal';
@@ -13,6 +14,18 @@ const Header: React.FC = () => {
   const { setViewMode } = useCoreStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const hasKey = !!llmConfig.apiKey;
+
+  // 教材フォルダの接続状態。繋がっていないとエージェントにファイル操作の道具が渡らないので、
+  // 押さなくても分かるところに出しておく。
+  const { status: bridgeStatus, rootName, lastError } = useBridgeStore();
+  const bridgeLook =
+    bridgeStatus === 'connected'
+      ? { color: 'text-emerald-500 hover:text-emerald-600', dot: 'bg-emerald-400', title: `教材フォルダ: ${rootName ?? '接続中'}` }
+      : bridgeStatus === 'checking'
+        ? { color: 'text-amber-500', dot: 'bg-amber-400', title: '教材フォルダ: 接続を確認しています' }
+        : bridgeStatus === 'error'
+          ? { color: 'text-rose-500 hover:text-rose-600', dot: 'bg-rose-400', title: `教材フォルダ: 接続できません（${lastError ?? ''}）` }
+          : { color: '', dot: '', title: '教材フォルダ: 未設定' };
 
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -91,6 +104,16 @@ const Header: React.FC = () => {
             title="Fullscreen Browser"
           >
             <Maximize2 size={16} />
+          </button>
+          <button
+            onClick={() => setBYOKOpen(true)}
+            className={`relative text-zinc-400 hover:text-darkDelegation transition-colors p-1 ${bridgeLook.color}`}
+            title={bridgeLook.title}
+          >
+            <FolderOpen size={16} />
+            {bridgeLook.dot && (
+              <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${bridgeLook.dot}`} />
+            )}
           </button>
           <button
             onClick={() => setBYOKOpen(true)}

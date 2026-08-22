@@ -7,6 +7,8 @@
  * フォントは Windows 標準搭載の BIZ UDPゴシック を第一候補にする。
  */
 
+import { SAVE_IMAGE_CSS, SAVE_IMAGE_SCRIPT } from './saveimage.mjs';
+
 export const BASE_CSS = `
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
@@ -101,10 +103,12 @@ export function buildHtml({ title, bodyHtml, css }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>${css}</style>
+<style>${css}
+${SAVE_IMAGE_CSS}</style>
 </head>
 <body>
 ${bodyHtml}
+<script>${SAVE_IMAGE_SCRIPT}</script>
 </body>
 </html>
 `;

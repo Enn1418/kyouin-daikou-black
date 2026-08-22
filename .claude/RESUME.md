@@ -9,6 +9,7 @@
 
 - 設計: `docs/teacher-edition-design.md`
 - 実際の使い方（分刻み）: `docs/teacher-edition-workflow.md`
+- 動かし方（Windows・手順）: `docs/setup-windows.md`
 - ブランチ: `claude/teacher-focused-design-kv19k9` / PR #1
 
 ## 完了済み（P0）

@@ -79,14 +79,17 @@ npm install
 
 どこでも構いません。決めるのは「**教材をためていく場所**」です。
 
-| PC の状況 | おすすめの場所 |
-|---|---|
-| D ドライブがある | `D:\kyouin` |
-| C ドライブだけ | `C:\Users\（ユーザー名）\Documents\kyouin` |
+| PC の状況 | 使う場所 | 手順 3 で打つコマンド |
+|---|---|---|
+| **C ドライブだけ**（多くの PC） | `C:\Users\（あなた）\kyouin` | `npm run bridge -- --root "$env:USERPROFILE\kyouin"` |
+| D ドライブがある | `D:\kyouin` | `npm run bridge -- --root "D:\kyouin"` |
 
-D ドライブが無い PC も多いので、無ければ迷わず下の行を使ってください。
-ユーザー名が分からなければ、エクスプローラで「PC」→「ドキュメント」を開き、
-上のアドレスバーをクリックすると実際のパスが出ます。
+**ユーザー名を調べる必要はありません。** PowerShell では `$env:USERPROFILE` が
+`C:\Users\（あなた）` に自動で置き換わります。そのまま打ってください。
+
+> ドキュメントフォルダの下に置きたくなりますが、OneDrive がドキュメントを同期していると
+> 場所がずれて分かりにくくなります。`$env:USERPROFILE\kyouin`（＝ユーザーフォルダ直下）が
+> 迷いません。エクスプローラのアドレスバーに `%USERPROFILE%` と打つと、その場所が開きます。
 
 ### 何ができるのか
 
@@ -138,11 +141,12 @@ kyouin\
 ### ターミナル 1 — 教材フォルダのブリッジ
 
 ```powershell
-npm run bridge -- --root "D:\kyouin"
+npm run bridge -- --root "$env:USERPROFILE\kyouin"
 ```
 
+（D ドライブに置くなら `--root "D:\kyouin"`）
+
 `--root` の前の `--` は必要です（無いと npm 自身の引数として扱われます）。
-`D:\kyouin` の部分は、手順 2 で決めた場所に置き換えてください。
 
 **フォルダがまだ無ければ、ここで雛形ごと作られます。** 作ったものが一覧で表示されます。
 そのあとトークンが表示されるので、この行をあとで使います。
@@ -216,8 +220,10 @@ B児は前回、単位の書き忘れが多かった。
 
 ```bat
 cd /d C:\kyouin-app
-npm run bridge -- --root "D:\kyouin"
+npm run bridge -- --root "%USERPROFILE%\kyouin"
 ```
+
+（`.bat` の中では `$env:USERPROFILE` ではなく `%USERPROFILE%` と書きます）
 
 同じく `app.bat`。
 

@@ -99,7 +99,13 @@ S11. 図は自分で描かない（絵文字・記号・アスキーアートを
        fraction  numerator, denominator, shape=bar|circle（分数）
        coins     values（お金。1 5 10 50 100 500 1000 5000 10000 のみ）
        grid      rows, cols（方眼。筆算の桁そろえ・作図）
-       board     areas, widths, notes（板書計画。黒板 3600×1200mm。区画は4つまで）
+     板書だけは指示が入れ子になるので、ブロックの中身を JSON で書く:
+       {"type":"board","grade":"低学年","header":"8/25 かさ","columns":[
+         {"width":2,"items":[{"kind":"label","text":"めあて"},{"kind":"box","frame":"blue","text":"…"}]}]}
+       kind: label / box（frame: blue=めあて red=まとめ）/ card / bubble（児童の考え）/ text /
+             figure（spec に上の図の指示を入れると区画の中に描かれる）
+       黒板は 3600×1200mm。grade で文字の大きさが決まり、入りきらなければ図に「入りません」と出る。
+       出たらそのまま渡さず、削ってから出し直す。
      図は多いほどよいわけではない。1つの課題に1つを目安にする。`
             : `
 S8. 教材フォルダは接続されていない。ファイルの読み書きはできない。

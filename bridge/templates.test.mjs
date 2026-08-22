@@ -6,8 +6,10 @@ import { markdownToHtml } from './markdown.mjs';
 
 const page = (md) => buildHtml({ title: 'てすと', bodyHtml: markdownToHtml(md), css: BASE_CSS });
 
+const BOARD = '```図\n{"type":"board","columns":[{"items":[{"kind":"text","text":"めあて"}]}]}\n```';
+
 test('図のあるページには、画像として保存する手段が付く', () => {
-  const html = page('```図\ntype: board\nareas: めあて,まとめ\n```');
+  const html = page(BOARD);
   assert.match(html, /figure-save/);
   assert.match(html, /画像として保存/);
   assert.match(html, /toBlob/);
@@ -30,6 +32,6 @@ test('埋め込むスクリプトは構文として通る', async () => {
 });
 
 test('板書は 3600×1200 の比のまま HTML に入る', () => {
-  const html = page('```図\ntype: board\nareas: めあて,まとめ\n```');
-  assert.match(html, /viewBox="0 0 900 300"/);
+  const html = page(BOARD);
+  assert.match(html, /viewBox="0 0 1200 400"/);
 });

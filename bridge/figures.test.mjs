@@ -123,7 +123,7 @@ test('すべての種類が、最低限の指示で描ける', () => {
     fraction: { numerator: 1, denominator: 2 },
     coins: { values: '100' },
     grid: {},
-    board: { areas: 'めあて,まとめ' }
+    board: { columns: [{ items: [{ kind: 'text', text: 'めあて' }] }] }
   };
   FIGURE_TYPES.forEach((type) => {
     const svg = renderFigure({ type, ...minimal[type] });
@@ -133,31 +133,106 @@ test('すべての種類が、最低限の指示で描ける', () => {
 });
 
 test('板書: 区画の幅は指示した比のとおり', () => {
-  const svg = renderFigure({ type: 'board', areas: 'めあて,まとめ', widths: '1,3' });
-  const heads = [...svg.matchAll(/<rect x="[\d.]+" y="6" width="([\d.]+)" height="40"/g)].map((m) => Number(m[1]));
-  assert.equal(heads.length, 2);
-  assert.ok(Math.abs(heads[1] - heads[0] * 3) < 0.001);
+  const svg = renderFigure({ type: 'board', columns: [{ width: 1, items: [] }, { width: 3, items: [] }] });
+  // 区画の区切り線が1本入る位置で比が分かる
+  const divider = svg.match(/<line x1="([\d.]+)" y1="\d+" x2="\1"/);
+  assert.ok(divider, '区切り線が無い');
+  const x = Number(divider[1]);
+  assert.ok(Math.abs(x - (10 + 1180 / 4)) < 1, `区切りの位置がおかしい: ${x}`);
 });
 
 test('板書: 黒板の比は 3600×1200（3:1）に固定', () => {
-  const svg = renderFigure({ type: 'board', areas: 'めあて' });
-  assert.match(svg, /viewBox="0 0 900 300"/);
+  const svg = renderFigure({ type: 'board', columns: [{ items: [] }] });
+  assert.match(svg, /viewBox="0 0 1200 400"/);
 });
 
-test('板書: widths の数が合わなければ描かずに断る', () => {
-  assert.match(renderFigure({ type: 'board', areas: 'あ,い,う', widths: '1,2' }), /figure-error/);
-});
-
-test('板書: 区画が無ければ断る', () => {
+test('板書: 区画が無ければ描かずに断る', () => {
   assert.match(renderFigure({ type: 'board' }), /figure-error/);
+  assert.match(renderFigure({ type: 'board', columns: [] }), /figure-error/);
 });
 
-test('板書: 中身は区画の幅に合わせて折り返す', () => {
+test('板書: 区画が6つ以上なら断る', () => {
+  const columns = Array.from({ length: 6 }, () => ({ items: [] }));
+  assert.match(renderFigure({ type: 'board', columns }), /figure-error/);
+});
+
+test('板書: 学年で文字の大きさが変わる（低学年ほど大きい）', () => {
+  const size = (grade) => {
+    const svg = renderFigure({ type: 'board', grade, columns: [{ items: [{ kind: 'text', text: 'あ' }] }] });
+    return Number(svg.match(/font-size="([\d.]+)"/)[1]);
+  };
+  assert.ok(size('低学年') > size('中学年'), '低学年の文字が中学年より小さい');
+  assert.ok(size('中学年') > size('高学年'), '中学年の文字が高学年より小さい');
+});
+
+test('板書: 書ききれない量は「入りません」と出す', () => {
+  const packed = { type: 'board', grade: '低学年', columns: [{ items: [{ kind: 'text', text: 'あ'.repeat(300) }] }] };
+  assert.match(renderFigure(packed), /入りません/);
+
+  // 同じ文字数でも、文字が小さい高学年なら収まる
+  assert.doesNotMatch(renderFigure({ ...packed, grade: '高学年' }), /入りません/);
+});
+
+test('板書: 収まる量なら警告を出さない', () => {
   const svg = renderFigure({
     type: 'board',
-    areas: 'めあて',
-    notes: 'どちらのかさが多いかをしらべてくらべることができる'
+    grade: '低学年',
+    header: '8/25 かさ',
+    columns: [
+      { width: 2, items: [{ kind: 'label', text: 'めあて' }, { kind: 'box', frame: 'blue', text: 'くらべよう' }] },
+      { width: 3, items: [{ kind: 'label', text: 'かんがえ' }, { kind: 'bubble', text: 'コップで' }] },
+      { width: 2, items: [{ kind: 'label', text: 'まとめ' }, { kind: 'box', frame: 'red', text: '1L=10dL' }] }
+    ]
   });
-  const lines = (svg.match(/font-size="17"/g) || []).length;
-  assert.ok(lines >= 1, '中身が描かれていない');
+  assert.doesNotMatch(svg, /入りません/);
+  assert.doesNotMatch(svg, /figure-error/);
+});
+
+test('板書: めあては青枠、まとめは赤枠（黒板の慣習に合わせる）', () => {
+  const svg = renderFigure({
+    type: 'board',
+    columns: [
+      { items: [{ kind: 'box', frame: 'blue', text: 'めあて' }] },
+      { items: [{ kind: 'box', frame: 'red', text: 'まとめ' }] }
+    ]
+  });
+  assert.match(svg, /stroke="#1D4ED8"/);
+  assert.match(svg, /stroke="#DC2626"/);
+});
+
+test('板書: 区画の中に図を置ける', () => {
+  const svg = renderFigure({
+    type: 'board',
+    columns: [{ items: [{ kind: 'figure', spec: { type: 'container', total: 10, filled: 3 } }] }]
+  });
+  assert.match(svg, /aria-label="かさ 3dL"/, '入れ子の図が無い');
+  assert.match(svg, /<svg x=/, '入れ子の svg になっていない');
+});
+
+test('板書: 中に置けない図（板書の入れ子）は断る', () => {
+  const svg = renderFigure({
+    type: 'board',
+    columns: [{ items: [{ kind: 'figure', spec: { type: 'board', columns: [] } }] }]
+  });
+  assert.match(svg, /図を描けません/);
+});
+
+test('図の指示は JSON でも書ける', () => {
+  const spec = parseFigureSpec('{"type":"board","columns":[{"items":[]}]}');
+  assert.equal(spec.type, 'board');
+  assert.equal(spec.columns.length, 1);
+});
+
+test('JSON が壊れていたら、読めないと言う', () => {
+  const spec = parseFigureSpec('{"type":"board",');
+  assert.match(renderFigure(spec), /読めません/);
+});
+
+test('板書の中の図は、印刷用CSSに潰されない（class を外す）', () => {
+  const svg = renderFigure({
+    type: 'board',
+    columns: [{ items: [{ kind: 'figure', spec: { type: 'tape', parts: '1,2' } }] }]
+  });
+  // 外側の svg だけが class="figure" を持つ。入れ子側が持つと height:auto で高さ0になる
+  assert.equal((svg.match(/class="figure"/g) || []).length, 1);
 });

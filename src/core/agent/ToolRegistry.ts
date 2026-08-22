@@ -29,7 +29,8 @@ export interface AgentActionContext {
  */
 const WEB_SEARCH_AGENTS: Record<string, { maxUses: number; allowedDomains?: string[] }> = {
   'sn-unit-rubric': { maxUses: 5, allowedDomains: ['mext.go.jp'] },
-  'sn-unit-source': { maxUses: 8 }
+  'sn-unit-source': { maxUses: 8 },
+  'sn-board-research': { maxUses: 6 }
 };
 
 export class ToolRegistry {

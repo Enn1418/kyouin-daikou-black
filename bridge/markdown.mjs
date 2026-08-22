@@ -4,7 +4,12 @@
  * 依存を増やさないための自前実装。教材で実際に使う記法だけを対象にする:
  * 見出し / 箇条書き / 番号つき / 表 / 強調 / 水平線 / 段落、
  * そして本文と区別するための [レイアウト] 行（印刷時は注として脇に出す）。
+ *
+ * 加えて ```図 で囲んだ指示を図に変換する（bridge/figures.mjs）。
+ * Markdown のままなら指示として読め、印刷用 HTML では図になる。
  */
+
+import { renderFigure, parseFigureSpec } from './figures.mjs';
 
 const escapeHtml = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -37,6 +42,25 @@ export function markdownToHtml(markdown) {
     const line = lines[i];
 
     if (!line.trim()) { i++; continue; }
+
+    // ```図 … ``` は図の指示。それ以外のコードブロックはそのまま出す
+    const fence = line.match(/^\s*```+\s*(\S*)\s*$/);
+    if (fence) {
+      const lang = fence[1];
+      const body = [];
+      i++;
+      while (i < lines.length && !/^\s*```+\s*$/.test(lines[i])) {
+        body.push(lines[i]);
+        i++;
+      }
+      i++; // 閉じの ```
+      if (lang === '図' || lang === 'figure') {
+        out.push(`<figure class="figure-block">${renderFigure(parseFigureSpec(body.join('\n')))}</figure>`);
+      } else {
+        out.push(`<pre><code>${escapeHtml(body.join('\n'))}</code></pre>`);
+      }
+      continue;
+    }
 
     // [レイアウト] 指示は本文ではないので、印刷時に区別できるようにする
     if (/^\s*\[レイアウト\]/.test(line)) {
@@ -98,7 +122,7 @@ export function markdownToHtml(markdown) {
     const para = [];
     while (
       i < lines.length && lines[i].trim() &&
-      !/^\s*(#{1,4}\s|[-*]\s|\d+[.)]\s|\[レイアウト\])/.test(lines[i]) &&
+      !/^\s*(#{1,4}\s|[-*]\s|\d+[.)]\s|\[レイアウト\]|```)/.test(lines[i]) &&
       !(lines[i].includes('|') && i + 1 < lines.length && isTableDivider(lines[i + 1]))
     ) {
       para.push(lines[i]);

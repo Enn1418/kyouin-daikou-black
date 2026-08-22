@@ -41,6 +41,16 @@ code { font-family: "BIZ UDゴシック", monospace; background: #f4f4f4; paddin
   padding-left: 8px;
   margin: 6pt 0;
 }
+/* 図（bridge/figures.mjs が描く SVG） */
+.figure-block { margin: 12pt 0; padding: 0; text-align: center; page-break-inside: avoid; }
+.figure { max-width: 100%; height: auto; }
+.figure-error {
+  border: 2px dashed #c00;
+  color: #c00;
+  font-size: 11pt;
+  padding: 8pt;
+  margin: 10pt 0;
+}
 @media print {
   .layout-note { display: none; }
   body { padding: 12mm 10mm; }

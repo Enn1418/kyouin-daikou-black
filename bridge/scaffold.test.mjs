@@ -76,3 +76,17 @@ test('自立活動の一次資料は空の雛形として置かれる（推測�
   assert.ok(jiritsu.includes('告示の本文をここに貼り付けて'));
   assert.ok(!jiritsu.includes('健康の保持'));   // 区分名を書いておかない
 });
+
+test('学級の実態の雛形に、架空の児童像を書かない', async () => {
+  const root = path.join(await tmp(), 'w');
+  await scaffold(root);
+  const profile = await fs.readFile(path.join(root, '00_共通/学級の実態.md'), 'utf8');
+
+  // 実在しそうな実態が雛形に入っていると、担任が書き換える前に教材へ流れ込む。
+  // 実際にそれが起きたので、学年も到達度も空欄で出す。
+  assert.match(profile, /未記入/);
+  assert.doesNotMatch(profile, /（\d年）/);
+  assert.doesNotMatch(profile, /相当/);
+  assert.doesNotMatch(profile, /九九/);
+  assert.match(profile, /- 学年:\s*$/m, '欄は空のまま置く');
+});

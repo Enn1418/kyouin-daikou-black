@@ -21,13 +21,27 @@
 - `src/data/agents.ts` — 既存定義を `BASE_SETS` に改名し `AGENTIC_SETS` に合流（既存チームは無変更）
 - `npm run lint` / `npm run build` 通過
 
+## 完了済み（P1：ローカルブリッジ）
+
+- `bridge/server.mjs` — 教材フォルダのブリッジ。127.0.0.1 のみ、トークン認証、root 配下限定、
+  拡張子ホワイトリスト、上書き時 `.bak`、削除 API なし。`/health` `/files` `/file` `/memory` `/export`
+- `bridge/markdown.mjs` `bridge/templates.mjs` — 依存なしの Markdown→HTML と印刷テンプレート
+  （plain / grid / trace / spaced / one-task、BIZ UDPゴシック指定）。
+  教材フォルダ側に `03_印刷テンプレート/<名前>.css` があればそちらが優先
+- `src/core/bridge/bridgeClient.ts` / `src/integration/store/bridgeStore.ts` — 接続設定と接続確認
+- `src/core/agent/tools/fileTools.ts` — `list_files` / `read_file` / `write_file`
+  （ブリッジ接続時のみツール定義に載る。read は全フェーズ、write は working のみ）
+- `ToolRegistry.process` が文字列も返せるようになり、`AgentBrain` がそれを tool_result に渡す
+- `BYOKModal` に「教材フォルダ（任意）」欄と接続確認ボタン
+- 起動: `npm run bridge -- --root "D:\kyouin"` → 表示された URL とトークンをアプリの設定に貼る
+
 ## 次にやること（未着手・どれを選ぶかは担任＝ユーザーの判断）
 
 1. **実地確認** — `.env` に `VITE_ANTHROPIC_API_KEY` を入れて `npm run dev`、
-   「特支・同時異教材室」で1回動かし、3段階の出力の質を見る
-2. **P1: ローカルブリッジ** — `bridge/server.mjs`（localhost:5174、ルート配下限定、トークン認証）と
-   ファイル系ツール3本（`list_files` / `read_file` / `write_file`）。教材フォルダの読み書きが可能になる
-3. **小さな修正** — 既定チームを特支にする（`DEFAULT_AGENTIC_SET_ID` が実在しない `'single-agent'`）、
+   「特支・同時異教材室」で1回動かし、3段階の出力の質とフォルダ保存を見る
+2. **ドリル生成 API** — `POST /generate/drill`（型を渡すと数値違いを検算つきで量産）。設計 §8-12
+3. **長期記憶の自動注入** — `/memory` の内容をプロンプトに載せ、差し戻し時の指摘を追記する
+4. **小さな修正** — 既定チームを特支にする（`DEFAULT_AGENTIC_SET_ID` が実在しない `'single-agent'`）、
    `NpcAgentDriver` の円状配置が `MAX_AGENTS` 分割のため9エージェントのチームでアバターが重なる問題
 
 ## 注意（設計上の線引き）

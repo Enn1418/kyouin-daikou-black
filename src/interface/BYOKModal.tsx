@@ -1,6 +1,8 @@
-import { Eye, EyeOff, Trash2, X } from 'lucide-react';
+import { Check, Eye, EyeOff, FolderOpen, Loader2, Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useUiStore } from '../integration/store/uiStore';
+import { useBridgeStore } from '../integration/store/bridgeStore';
+import { checkBridge } from '../core/bridge/bridgeClient';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
 interface BYOKModalProps {
@@ -18,6 +20,16 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [isErrorExpanded, setIsErrorExpanded] = useState(false);
 
+  // 教材フォルダのローカルブリッジ（任意。未起動でもアプリは動く）
+  const { url: bridgeUrl, token: bridgeToken, status: bridgeStatus, rootName, lastError, setConfig } = useBridgeStore();
+  const [bridgeUrlInput, setBridgeUrlInput] = useState<string>(bridgeUrl);
+  const [bridgeTokenInput, setBridgeTokenInput] = useState<string>(bridgeToken);
+
+  const handleBridgeCheck = async () => {
+    setConfig({ url: bridgeUrlInput.trim(), token: bridgeTokenInput.trim() });
+    await checkBridge();
+  };
+
   const handleSave = () => {
     const config = {
       apiKey: apiKey.trim(),
@@ -25,6 +37,7 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
       model: llmConfig.model || DEFAULT_MODELS.text,
     };
     setLlmConfig(config);
+    setConfig({ url: bridgeUrlInput.trim(), token: bridgeTokenInput.trim() });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     } catch (e) {
@@ -179,6 +192,54 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
                 {showGeminiKey ? <EyeOff size={20} strokeWidth={2.5} /> : <Eye size={20} strokeWidth={2.5} />}
               </button>
             </div>
+          </div>
+
+          {/* 教材フォルダ（ローカルブリッジ） */}
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4 ml-1">
+              <label className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300">
+                教材フォルダ（任意）
+              </label>
+              {bridgeStatus === 'connected' && (
+                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                  <Check size={12} strokeWidth={3} /> {rootName}
+                </span>
+              )}
+            </div>
+            <p className="text-zinc-400 text-[11px] font-medium leading-relaxed mb-3 ml-1">
+              自分の PC で <code className="font-mono">npm run bridge -- --root "教材フォルダ"</code> を起動すると、
+              エージェントが去年の教材や学級の実態を読み、成果物をフォルダに保存できます。未起動でもアプリは動きます。
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={bridgeUrlInput}
+                onChange={(e) => setBridgeUrlInput(e.target.value)}
+                placeholder="http://localhost:5174"
+                className="w-1/2 bg-zinc-50 border border-zinc-100 rounded-3xl px-5 py-4 text-sm text-darkDelegation font-mono placeholder:text-zinc-300 placeholder:font-sans focus:outline-none focus:border-zinc-200 transition-all shadow-sm"
+              />
+              <input
+                type="text"
+                value={bridgeTokenInput}
+                onChange={(e) => setBridgeTokenInput(e.target.value)}
+                placeholder="起動時に表示されるトークン"
+                className="w-1/2 bg-zinc-50 border border-zinc-100 rounded-3xl px-5 py-4 text-sm text-darkDelegation font-mono placeholder:text-zinc-300 placeholder:font-sans focus:outline-none focus:border-zinc-200 transition-all shadow-sm"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleBridgeCheck}
+              disabled={bridgeStatus === 'checking' || !bridgeUrlInput.trim() || !bridgeTokenInput.trim()}
+              className="mt-3 flex items-center gap-2 px-6 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-darkDelegation hover:border-zinc-200 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {bridgeStatus === 'checking'
+                ? <Loader2 size={14} strokeWidth={3} className="animate-spin" />
+                : <FolderOpen size={14} strokeWidth={3} />}
+              接続を確認
+            </button>
+            {bridgeStatus === 'error' && lastError && (
+              <p className="mt-2 ml-1 text-[10px] font-medium leading-relaxed text-red-500">{lastError}</p>
+            )}
           </div>
 
           {/* Actions */}

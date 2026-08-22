@@ -165,11 +165,13 @@ export class AgentBrain {
       // Every tool_use block sent to Claude must be answered with a matching
       // tool_result in the next message, or the next API call is rejected.
       for (const tc of toolCalls) {
-        const handled = ToolRegistry.process(this.host as any, tc);
+        // File tools resolve to a string (the folder listing, the file body, a
+        // save confirmation); the store-mutating tools stay synchronous booleans.
+        const handled = await ToolRegistry.process(this.host as any, tc);
         this.history.push({
           role: 'tool',
           name: tc.id,
-          content: handled ? 'OK' : 'Tool call was not handled.'
+          content: typeof handled === 'string' ? handled : handled ? 'OK' : 'Tool call was not handled.'
         });
         if (tc.name === 'deliver_project' && handled) {
           this.handleFinalAssetGeneration(tc.args.output);

@@ -1,4 +1,5 @@
 import { AgentNode, AGENTIC_SETS } from '../../data/agents';
+import { isBridgeConnected } from '../../integration/store/bridgeStore';
 import { useCoreStore } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 
@@ -73,7 +74,14 @@ S3. 自立活動の区分名・項目名は、担任が与えた一次資料の�
 S4. 個別の指導計画・評価・所見にあたる文章は、必ず冒頭に「下書き」と明記する。断定的な評価語と児童間の比較は書かない。
 S5. 教科書本文・市販教材の本文をそのまま複製しない。担任が本文を用意する前提で設問と支援を作るか、著作権の切れた作品を使う。
 S6. 教材本文には前置き・後書き・自己言及を書かない。プリントとしてそのまま印刷できる中身だけを書く。
-S7. 不確かな内容は「要確認」と明示する。もっともらしく埋めない。`
+S7. 不確かな内容は「要確認」と明示する。もっともらしく埋めない。${
+          isBridgeConnected()
+            ? `
+S8. 教材フォルダが使える。実態・一次資料・去年の教材は read_file で読み、推測で補わない。
+S9. 完成した教材は write_file で教材フォルダに保存する。印刷用テンプレートも指定する
+    （マス目=grid、なぞり書き=trace、分かち書き=spaced、1課題1ページ=one-task）。`
+            : ''
+        }`
       : '';
 
     // 教材本文は100語では収まらないため、特支チームでは systemic output の長さ制限を外す。

@@ -5,6 +5,7 @@ import { DEFAULT_MODELS, AVAILABLE_MODELS } from '../../core/llm/constants';
 import { calculateCost } from '../../core/llm/pricing';
 import { useTeamStore } from './teamStore';
 import { useUiStore } from './uiStore';
+import { appendMemoryNote } from '../../core/bridge/bridgeClient';
 
 export type TaskStatus = 'scheduled' | 'on_hold' | 'in_progress' | 'done'
 
@@ -313,6 +314,10 @@ export const useCoreStore = create<CoreState>()(
       },
 
       rejectTask: (taskId, comments) => {
+        // 担任の指摘は教材フォルダの記憶に残す（次からは最初からそうなるように）。
+        // 失敗しても差し戻し自体は成立させたいので、待たずに投げっぱなしにする。
+        void appendMemoryNote(comments);
+
         set((s) => {
           const task = s.tasks.find(t => t.id === taskId);
           if (!task) return {};

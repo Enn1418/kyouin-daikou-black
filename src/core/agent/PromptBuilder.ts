@@ -1,5 +1,5 @@
 import { AgentNode, AGENTIC_SETS } from '../../data/agents';
-import { isBridgeConnected } from '../../integration/store/bridgeStore';
+import { getBridgeMemory, isBridgeConnected } from '../../integration/store/bridgeStore';
 import { useCoreStore } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 
@@ -91,13 +91,20 @@ S10. 反復練習の計算問題を自分で並べない。generate_drill に出
       ? '1. チャットは30語以内。タスクのタイトルと説明は100語以内。ただし complete_task / deliver_project の教材本文には長さ制限を設けない（必要な分量を書く）。前置き・後書き・自己申告（「作成しました」等）は書かない。'
       : "1. MAX 30 WORDS for chat. Systemic outputs ('complete_task', 'deliver_project', and the task titles/descriptions you create) MUST be under 100 WORDS. NO conversational filler, intros, outros, or self-attribution (\"I have done...\"). Focus exclusively on core data and synthesis.";
 
+    // 教材フォルダに溜まった記憶（過去の差し戻しの指摘）。
+    // 長くなりすぎたら新しいほうを残す。
+    const memory = getBridgeMemory().trim();
+    const memoryBlock = memory
+      ? `\nこの学級での約束（過去の差し戻しから。毎回これに従う）:\n${memory.slice(-4000)}\n`
+      : '';
+
     const pendingReviews = tasks.filter(t => t.assignedAgentId === agent.index && t.reviewComments);
     const reviewContext = pendingReviews.length > 0
       ? `\nREVISION REQUESTED:\n${pendingReviews.map(t => `- [${t.title}] Feedback: ${t.reviewComments}`).join('\n')}`
       : '';
 
     return `ID: ${agent.name}. Role: ${agent.description}. Phase: ${phase}.
-${brief ? `Brief: ${brief}` : ''}${reviewContext}
+${brief ? `Brief: ${brief}` : ''}${memoryBlock}${reviewContext}
 Team: User (0), ${team}
 KANBAN:
 ${board}

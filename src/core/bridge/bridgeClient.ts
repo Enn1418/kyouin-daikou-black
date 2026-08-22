@@ -50,6 +50,36 @@ async function request<T>(
   return payload as T;
 }
 
+/** 教材フォルダの記憶を読み込む。接続確認のたびに読み直す。 */
+export async function loadMemory(): Promise<string> {
+  try {
+    const { content } = await bridge.readMemory();
+    useBridgeStore.getState().setMemory(content);
+    return content;
+  } catch {
+    // 記憶が読めなくても本体の動作は止めない
+    useBridgeStore.getState().setMemory('');
+    return '';
+  }
+}
+
+/**
+ * 差し戻しの指摘を記憶に追記する。
+ *
+ * 自動で何でも溜めるのではなく、担任が「直して」と言ったことだけを残す。
+ * 同じ指摘を二度書かないことと上限の管理はブリッジ側で行う（bridge/memory.mjs）。
+ */
+export async function appendMemoryNote(note: string): Promise<void> {
+  if (!note?.trim()) return;
+  try {
+    const { content } = await bridge.appendMemoryNote(note);
+    useBridgeStore.getState().setMemory(content);
+  } catch (e) {
+    // 記憶の追記に失敗しても差し戻し自体は成立させる
+    console.warn('[bridge] 記憶に追記できませんでした', e);
+  }
+}
+
 /** 接続確認。副作用として store の状態を更新する。 */
 export async function checkBridge(): Promise<boolean> {
   const { setStatus } = useBridgeStore.getState();
@@ -59,6 +89,7 @@ export async function checkBridge(): Promise<boolean> {
     // /health は認証不要なので、トークンが正しいかは実際の読み取りで確かめる
     await request<unknown>('GET', '/files', { query: { dir: '.' } });
     setStatus('connected', { rootName: health.root, error: null });
+    await loadMemory();
     return true;
   } catch (e) {
     setStatus('error', { error: e instanceof Error ? e.message : String(e), rootName: null });
@@ -83,6 +114,9 @@ export const bridge = {
 
   writeMemory: (content: string) =>
     request<{ path: string; bytes: number }>('PUT', '/memory', { body: { content } }),
+
+  appendMemoryNote: (note: string) =>
+    request<{ path: string; content: string; appended: boolean }>('POST', '/memory/note', { body: { note } }),
 
   exportHtml: (params: { path: string; title?: string; markdown: string; template?: string }) =>
     request<{ path: string; template: string }>('POST', '/export', { body: params }),

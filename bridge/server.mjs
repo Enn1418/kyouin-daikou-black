@@ -21,6 +21,7 @@ import path from 'node:path';
 
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
+import { mergeMemoryNote } from './memory.mjs';
 import { BASE_CSS, TEMPLATE_CSS, TEMPLATE_NAMES, buildHtml } from './templates.mjs';
 
 const ALLOWED_EXTENSIONS = new Set(['.md', '.txt', '.csv', '.json', '.html']);
@@ -267,6 +268,24 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       if (typeof body.content !== 'string') throw Object.assign(new Error('content が必要です'), { status: 400 });
       return json(res, 200, await writeFile(MEMORY_PATH, body.content), headers);
+    }
+    // 差し戻しの指摘を1件だけ足す（重複と際限ない肥大は bridge 側で抑える）
+    if (req.method === 'POST' && url.pathname === '/memory/note') {
+      const body = await readBody(req);
+      if (typeof body.note !== 'string') throw Object.assign(new Error('note が必要です'), { status: 400 });
+
+      let current = '';
+      try {
+        current = (await readFile(MEMORY_PATH)).content;
+      } catch (e) {
+        if (e.code !== 'ENOENT') throw e;
+      }
+
+      const next = mergeMemoryNote(current, body.note);
+      if (next === null) return json(res, 200, { path: MEMORY_PATH, content: current, appended: false }, headers);
+
+      await writeFile(MEMORY_PATH, next);
+      return json(res, 200, { path: MEMORY_PATH, content: next, appended: true }, headers);
     }
     if (req.method === 'POST' && url.pathname === '/generate/drill') {
       return json(res, 200, await generateDrillFiles(await readBody(req)), headers);

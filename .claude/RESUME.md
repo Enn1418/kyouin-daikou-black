@@ -54,13 +54,21 @@
   「この学級での約束」としてプロンプト先頭付近に載せる（末尾4000字まで）
 - `bridge/memory.test.mjs` — 7件。重複排除・空入力・改行の畳み込み・上限・担任の手書き見出しの保全
 
+## 完了済み（既定チームとアバター配置の修正）
+
+- `DEFAULT_AGENTIC_SET_ID` を `'sn-multi-tier'`（特支・同時異教材室）に。
+  以前は実在しない `'single-agent'` で、常に `AGENTIC_SETS[0]`（unboring-net）へ落ちていた
+- `NpcAgentDriver` の円状配置の分母を `MAX_AGENTS`（固定5）から実際のアバター数
+  （`characterManager.getCount()`）に変更。9エージェントのチームで index 6〜9 が 1〜4 に重なっていた
+
 ## 次にやること（未着手・どれを選ぶかは担任＝ユーザーの判断）
 
 1. **実地確認** — `.env` に `VITE_ANTHROPIC_API_KEY` を入れて `npm run dev`、
-   「特支・同時異教材室」で1回動かし、3段階の出力の質とフォルダ保存を見る
-2. **小さな修正** — 既定チームを特支にする（`DEFAULT_AGENTIC_SET_ID` が実在しない `'single-agent'`）、
-   `NpcAgentDriver` の円状配置が `MAX_AGENTS` 分割のため9エージェントのチームでアバターが重なる問題
-3. **UI で記憶を見る／直す** — 現状 memory.md は担任がエクスプローラで開いて編集する前提
+   「特支・同時異教材室」で1回動かし、3段階の出力の質とフォルダ保存を見る。
+   **ここから先は実際に使ってみないと決められない**（残りは机上では詰め切れない）
+2. **UI で記憶を見る／直す** — 現状 memory.md は担任がエクスプローラで開いて編集する前提
+3. **MAX_AGENTS** — 5 のまま。既存の `teacher-proxy-black`（9エージェント）は
+   `VisualConfigurator` で編集できない（表示と動作には影響なし）
 
 ## 注意（設計上の線引き）
 

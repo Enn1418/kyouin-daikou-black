@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { AgentNode, USER_ID, MAX_AGENTS } from '../../data/agents';
+import { AgentNode, USER_ID } from '../../data/agents';
 import { useCoreStore } from '../../integration/store/coreStore';
 import { IAgentDriver } from '../../types';
 import { CharacterController } from '../CharacterController';
@@ -170,8 +170,12 @@ export class NpcAgentDriver implements IAgentDriver {
       if (areaPois.length > 0) {
         const areaPoi = areaPois[Math.floor(Math.random() * areaPois.length)];
 
-        // Calculate distributed position (0.75m radius, 1 slot per MAX_AGENTS)
-        const angle = (this.agentIndex * (Math.PI * 2)) / MAX_AGENTS;
+        // Spread the agents around the area, one slot each. The divisor has to be
+        // how many avatars are actually in the scene — dividing by a fixed cap put
+        // every agent past that cap on top of an earlier one (the 9-agent team
+        // stacked indices 6-9 onto 1-4).
+        const slots = Math.max(1, this.controller.characterManager.getCount());
+        const angle = (this.agentIndex * (Math.PI * 2)) / slots;
         const radius = 1;
         const target = areaPoi.position.clone();
         target.x += Math.cos(angle) * radius;

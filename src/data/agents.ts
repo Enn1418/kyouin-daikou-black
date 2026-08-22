@@ -7,7 +7,12 @@ export const USER_ID = 'user';
 export const USER_NAME = 'User';
 export const MAX_AGENTS = 5;
 export { USER_COLOR };
-export const DEFAULT_AGENTIC_SET_ID = 'single-agent';
+/**
+ * 起動時に選ばれているチーム。このリポジトリは特別支援学級の教材作成が主目的なので、
+ * 主力の「特支・同時異教材室」を既定にする。
+ * （以前は存在しない 'single-agent' を指しており、常に AGENTIC_SETS[0] へフォールバックしていた）
+ */
+export const DEFAULT_AGENTIC_SET_ID = 'sn-multi-tier';
 export interface AgentNode {
   id: string;
   index: number;

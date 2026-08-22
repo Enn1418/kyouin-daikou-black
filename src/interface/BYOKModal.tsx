@@ -25,6 +25,12 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
   const [bridgeUrlInput, setBridgeUrlInput] = useState<string>(bridgeUrl);
   const [bridgeTokenInput, setBridgeTokenInput] = useState<string>(bridgeToken);
 
+  // URL とトークンが揃うまで接続確認は押せない（押しても必ず失敗するため）
+  const bridgeReady = !!bridgeUrlInput.trim() && !!bridgeTokenInput.trim();
+
+  const inputClass =
+    'w-full bg-zinc-50 border border-zinc-100 rounded-3xl px-5 py-4 text-sm text-darkDelegation font-mono placeholder:text-zinc-300 placeholder:font-sans focus:outline-none focus:border-zinc-200 transition-all shadow-sm';
+
   const handleBridgeCheck = async () => {
     setConfig({ url: bridgeUrlInput.trim(), token: bridgeTokenInput.trim() });
     await checkBridge();
@@ -194,8 +200,9 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* 教材フォルダ（ローカルブリッジ） */}
-          <div className="mb-10">
+          {/* 教材フォルダ（ローカルブリッジ）
+              translate="no": ブラウザの自動翻訳が日本語の説明まで訳し直して壊すため。 */}
+          <div className="mb-10" translate="no">
             <div className="flex items-center justify-between mb-4 ml-1">
               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 教材フォルダ（任意）
@@ -210,26 +217,36 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
               自分の PC で <code className="font-mono">npm run bridge -- --root "教材フォルダ"</code> を起動すると、
               エージェントが去年の教材や学級の実態を読み、成果物をフォルダに保存できます。未起動でもアプリは動きます。
             </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={bridgeUrlInput}
-                onChange={(e) => setBridgeUrlInput(e.target.value)}
-                placeholder="http://localhost:5174"
-                className="w-1/2 bg-zinc-50 border border-zinc-100 rounded-3xl px-5 py-4 text-sm text-darkDelegation font-mono placeholder:text-zinc-300 placeholder:font-sans focus:outline-none focus:border-zinc-200 transition-all shadow-sm"
-              />
-              <input
-                type="text"
-                value={bridgeTokenInput}
-                onChange={(e) => setBridgeTokenInput(e.target.value)}
-                placeholder="起動時に表示されるトークン"
-                className="w-1/2 bg-zinc-50 border border-zinc-100 rounded-3xl px-5 py-4 text-sm text-darkDelegation font-mono placeholder:text-zinc-300 placeholder:font-sans focus:outline-none focus:border-zinc-200 transition-all shadow-sm"
-              />
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-[10px] font-black tracking-wider text-zinc-400 mb-1 ml-1">
+                  ① URL
+                </label>
+                <input
+                  type="text"
+                  value={bridgeUrlInput}
+                  onChange={(e) => setBridgeUrlInput(e.target.value)}
+                  placeholder="http://localhost:5174"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black tracking-wider text-zinc-400 mb-1 ml-1">
+                  ② トークン（ブリッジのターミナルに出る32桁）
+                </label>
+                <input
+                  type="text"
+                  value={bridgeTokenInput}
+                  onChange={(e) => setBridgeTokenInput(e.target.value)}
+                  placeholder="a1b2c3d4..."
+                  className={inputClass}
+                />
+              </div>
             </div>
             <button
               type="button"
               onClick={handleBridgeCheck}
-              disabled={bridgeStatus === 'checking' || !bridgeUrlInput.trim() || !bridgeTokenInput.trim()}
+              disabled={bridgeStatus === 'checking' || !bridgeReady}
               className="mt-3 flex items-center gap-2 px-6 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-darkDelegation hover:border-zinc-200 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {bridgeStatus === 'checking'
@@ -237,6 +254,11 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
                 : <FolderOpen size={14} strokeWidth={3} />}
               接続を確認
             </button>
+            {!bridgeReady && (
+              <p className="mt-2 ml-1 text-[10px] font-medium leading-relaxed text-zinc-400">
+                ①と②の両方を入れると押せます。
+              </p>
+            )}
             {bridgeStatus === 'error' && lastError && (
               <p className="mt-2 ml-1 text-[10px] font-medium leading-relaxed text-red-500">{lastError}</p>
             )}

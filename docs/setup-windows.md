@@ -6,25 +6,68 @@
 
 ## 0. 用意するもの
 
-- **Node.js 18 以上** — <https://nodejs.org/> の LTS 版
-- **git**
-- **Chrome か Edge**（3D 表示に WebGPU を使うため）
-- **Claude の API キー** — <https://console.anthropic.com/settings/keys>
+- **Chrome か Edge**（3D 表示に WebGPU を使うため。Windows なら Edge が最初から入っています）
+- **Claude の API キー** — <https://console.anthropic.com/settings/keys> で作れます（`sk-ant-` で始まる文字列）
+- **Node.js** — 次の手順で入れます
+
+git は要りません。
 
 ---
 
 ## 1. 取り込む（初回だけ）
 
-まだ `main` にマージしていないので、ブランチを指定して取得します。
+### 1-1. Node.js を入れる
+
+<https://nodejs.org/ja> を開き、**「LTS」** と書かれたボタンからインストーラをダウンロードします。
+ダブルクリックして、あとは「次へ」で進めるだけです（設定を変える必要はありません）。
+
+これはアプリを動かすための土台です。1 回入れれば以後は不要です。
+
+### 1-2. ファイル一式をダウンロードする
+
+次のリンクを開くと ZIP が落ちてきます。
+
+<https://github.com/Enn1418/kyouin-daikou-black/archive/refs/heads/claude/teacher-focused-design-kv19k9.zip>
+
+（`main` にはまだ入れていないので、開発中のブランチを直接ダウンロードする形です。約 1.2 MB）
+
+### 1-3. 展開する
+
+ダウンロードした ZIP を右クリック →「すべて展開」。
+展開先はどこでも構いませんが、たとえば `C:\kyouin-app` にします。
+
+展開すると `kyouin-daikou-black-claude-teacher-focused-design-kv19k9` という長い名前のフォルダが
+できます。**扱いやすいよう `kyouin-app` などに名前を変えて構いません**（以下この名前で説明します）。
+
+### 1-4. そのフォルダで「ターミナル」を開く
+
+エクスプローラで `kyouin-app` フォルダを開き、**上部のアドレスバー**（`C:\... \kyouin-app` と
+表示されている場所）をクリックして、そこに
+
+```
+powershell
+```
+
+と入力して **Enter**。青い画面の窓が開きます。これが「ターミナル」です。
+以降の「コマンド」は、この窓に文字を入力して Enter を押すことを指します。
+
+> Windows 11 ならフォルダを右クリック →「ターミナルで開く」でも同じです。
+
+### 1-5. 部品を集める
+
+開いた窓に、次の 1 行を入力して Enter。
 
 ```powershell
-git clone https://github.com/Enn1418/kyouin-daikou-black.git
-cd kyouin-daikou-black
-git checkout claude/teacher-focused-design-kv19k9
 npm install
 ```
 
-すでに手元にある場合は `git fetch` してから `git checkout claude/teacher-focused-design-kv19k9`。
+数分かかり、大量の文字が流れます。**それが正常です。** 途中で警告（`warn`）が出ても問題ありません。
+入力できる状態に戻ったら完了です。
+
+これで「取り込む」は終わりです。
+
+> **あとから更新したくなったら**: もう一度 ZIP をダウンロードして展開し直し、`npm install` をやり直します。
+> 頻繁に更新するなら git を使うほうが楽ですが、最初は ZIP で十分です。
 
 ---
 
@@ -59,7 +102,7 @@ D:\kyouin\
 
 ## 3. 起動する（毎回）
 
-**ターミナルを 2 つ**開きます。どちらも `kyouin-daikou-black` フォルダの中で実行します。
+**ターミナルを 2 つ**開きます。どちらも手順 1-4 と同じやり方で、`kyouin-app` フォルダの中で開いてください。
 
 ### ターミナル 1 — 教材フォルダのブリッジ
 
@@ -136,17 +179,21 @@ B児は前回、単位の書き忘れが多かった。
 
 デスクトップにショートカットを 2 つ作っておくと、ダブルクリックだけで起動できます。
 
-`bridge.bat`
+メモ帳で次の内容を書き、`bridge.bat` という名前で（「ファイルの種類」を「すべてのファイル」にして）保存します。
+
 ```bat
-cd /d C:\path\to\kyouin-daikou-black
+cd /d C:\kyouin-app
 npm run bridge -- --root "D:\kyouin"
 ```
 
-`app.bat`
+同じく `app.bat`。
+
 ```bat
-cd /d C:\path\to\kyouin-daikou-black
+cd /d C:\kyouin-app
 npm run dev
 ```
+
+`C:\kyouin-app` の部分は、実際に展開した場所に置き換えてください。
 
 ---
 
@@ -160,6 +207,8 @@ npm run dev
 | 接続を確認が失敗する | ターミナル 1 が動いているか。トークンをコピーし損ねていないか |
 | 教材フォルダに保存されない | 接続確認が緑になっているか（未接続だとエージェントにファイル機能が渡りません） |
 | `npm run bridge` で root がおかしい | `--root` の前に `--` があるか |
+| `npm` は認識されていません、と出る | Node.js が入っていない、または入れた後にターミナルを開き直していない |
+| ターミナルの開き方が分からない | フォルダのアドレスバーに `powershell` と入力して Enter（手順 1-4） |
 
 ---
 

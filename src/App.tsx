@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { autoConnectBridge } from './core/bridge/bridgeClient';
+import { getOfficeTheme, useAppearanceStore } from './integration/store/appearanceStore';
 import { useCoreStore } from './integration/store/coreStore';
 import { ActionLogPanel } from './interface/ActionLogPanel';
 import { FinalOutputModal } from './interface/FinalOutputModal';
@@ -55,6 +56,12 @@ const App: React.FC = () => {
       window.removeEventListener('mouseup', stopResizing);
     };
   }, [resize, stopResizing]);
+
+  // 職員室の背景色。担任が選んだものを 3D 側へ渡す
+  const officeThemeId = useAppearanceStore((s) => s.themeId);
+  useEffect(() => {
+    sceneManager?.setBackgroundColor(getOfficeTheme(officeThemeId).background);
+  }, [sceneManager, officeThemeId]);
 
   // 教材フォルダのブリッジは起動のたびに繋ぎ直す（設定済みなら担任の操作は要らない）
   useEffect(() => {

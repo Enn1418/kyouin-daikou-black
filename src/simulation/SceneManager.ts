@@ -212,6 +212,11 @@ export class SceneManager {
     });
   }
 
+  /** 職員室の背景色。設定から変えられる。 */
+  public setBackgroundColor(color: string): void {
+    this.stage.setBackgroundColor(color);
+  }
+
   public startChat(npcIndex: number): void {
     useUiStore.getState().setChatting(true);
   }

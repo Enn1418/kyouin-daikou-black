@@ -38,4 +38,3 @@ export const ENCOUNTER_RADIUS = 1.5;
 export const NAVMESH_ZONE = 'level';
 
 /** Color de fondo de la escena (Three.js) */
-export const SCENE_BACKGROUND_COLOR = 0xFaFcFb;

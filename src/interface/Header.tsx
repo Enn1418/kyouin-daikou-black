@@ -1,6 +1,7 @@
-import { FolderOpen, Info, KeyRound, Maximize2, Settings } from 'lucide-react';
+import { FolderOpen, Info, KeyRound, Maximize2, Palette, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import packageJson from '../../package.json';
+import { OFFICE_THEMES, useAppearanceStore } from '../integration/store/appearanceStore';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useCoreStore } from '../integration/store/coreStore';
 import { useUiStore } from '../integration/store/uiStore';
@@ -13,6 +14,8 @@ const Header: React.FC = () => {
   const { llmConfig, isBYOKOpen, setBYOKOpen } = useUiStore();
   const { setViewMode } = useCoreStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const { themeId, setThemeId } = useAppearanceStore();
   const hasKey = !!llmConfig.apiKey;
 
   // 教材フォルダの接続状態。繋がっていないとエージェントにファイル操作の道具が渡らないので、
@@ -105,6 +108,34 @@ const Header: React.FC = () => {
           >
             <Maximize2 size={16} />
           </button>
+          {/* 職員室の背景色。長く見る画面なので、まぶしさは担任が決められるほうがよい */}
+          <div className="relative" translate="no">
+            <button
+              onClick={() => setIsPaletteOpen((v) => !v)}
+              className="text-zinc-400 hover:text-darkDelegation transition-colors p-1"
+              title="職員室の色"
+            >
+              <Palette size={16} />
+            </button>
+            {isPaletteOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsPaletteOpen(false)} />
+                <div className="absolute right-0 top-8 z-50 bg-white rounded-2xl shadow-lg border border-zinc-100 p-3 flex gap-2">
+                  {OFFICE_THEMES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setThemeId(t.id); setIsPaletteOpen(false); }}
+                      title={t.name}
+                      className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${
+                        themeId === t.id ? 'border-darkDelegation scale-110' : 'border-zinc-200 hover:border-zinc-400'
+                      }`}
+                      style={{ backgroundColor: t.background }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => setBYOKOpen(true)}
             className={`relative text-zinc-400 hover:text-darkDelegation transition-colors p-1 ${bridgeLook.color}`}

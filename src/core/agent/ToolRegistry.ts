@@ -21,6 +21,17 @@ export interface AgentActionContext {
   appendHistory: (message: LLMMessage) => void;
 }
 
+/**
+ * web 検索を渡すエージェント。
+ *
+ * 評価担当は学習指導要領の本文を確かめるためだけに使うので、文部科学省に限定する。
+ * 資料集め担当は実践事例を探すため制限しないが、回数で歯止めをかける。
+ */
+const WEB_SEARCH_AGENTS: Record<string, { maxUses: number; allowedDomains?: string[] }> = {
+  'sn-unit-rubric': { maxUses: 5, allowedDomains: ['mext.go.jp'] },
+  'sn-unit-source': { maxUses: 8 }
+};
+
 export class ToolRegistry {
   /**
    * Processes a tool call by dispatching it to the appropriate tool handler.
@@ -55,10 +66,30 @@ export class ToolRegistry {
     }
   }
 
-  public static getDefinitions(agentIndex: number, phase: string, subagentsCount: number = 0): any[] {
+  public static getDefinitions(
+    agentIndex: number,
+    phase: string,
+    subagentsCount: number = 0,
+    agentId?: string
+  ): any[] {
     const isLead = agentIndex === 1;
     const isManager = subagentsCount > 0;
     const tools: any[] = [];
+
+    // Anthropic のサーバ側 web 検索。使えるのは根拠を要する2人だけに絞る。
+    // 全員に渡すと、教材づくりの最中に不要な検索が走って費用と時間を食う。
+    const search = WEB_SEARCH_AGENTS[agentId || ''];
+    if (search && phase === 'working') {
+      tools.push({
+        type: 'server',
+        server: {
+          type: 'web_search_20260209',
+          name: 'web_search',
+          max_uses: search.maxUses,
+          ...(search.allowedDomains ? { allowed_domains: search.allowedDomains } : {})
+        }
+      });
+    }
 
     // 0. Teaching-materials folder (only when the local bridge is running).
     //    Reading is allowed in every phase — the lead needs the class profile

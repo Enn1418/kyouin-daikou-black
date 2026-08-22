@@ -321,7 +321,68 @@ function grid(p) {
   return svg(cols * cell + W, rows * cell + W, body.join(''), `方眼 ${rows}×${cols}`);
 }
 
-const FIGURES = { tenframe, dots, numberline, container, clock, tape, fraction, coins, grid };
+
+/**
+ * 板書計画。黒板を区画に割り、見出しと中身を置く。
+ *
+ * 縦横比は小学校で最も一般的な W3600 × H1200mm（3:1）に固定する。
+ * 実物と比が違うと、「これは入りきらない」の判断ができない。
+ */
+function board(p) {
+  const areas = strList(p.areas);
+  if (!areas.length) fail('board には areas（例 areas: めあて,問い,まとめ）が要ります');
+  if (areas.length > 6) fail('board の区画は6つまでにしてください');
+  const notes = strList(p.notes);
+  const widths = numList(p.widths);
+  if (widths.length && widths.length !== areas.length) {
+    fail('board の widths は areas と同じ数にしてください');
+  }
+  if (widths.some((w) => w <= 0)) fail('board の widths は正の数にしてください');
+  const ratio = widths.length ? widths : areas.map(() => 1);
+  const sum = ratio.reduce((a, b) => a + b, 0);
+
+  // 3600 x 1200mm を 900 x 300 で描く（1mm = 0.25）
+  const width = 900;
+  const height = 300;
+  const pad = 6;
+  const headH = 40;
+
+  const body = [`<rect x="${pad}" y="${pad}" width="${width - pad * 2}" height="${height - pad * 2}" fill="#fff" stroke="${STROKE}" stroke-width="4"/>`];
+  let x = pad;
+  areas.forEach((name, i) => {
+    const w = ((width - pad * 2) * ratio[i]) / sum;
+    if (i > 0) {
+      body.push(`<line x1="${x}" y1="${pad}" x2="${x}" y2="${height - pad}" stroke="${STROKE}" stroke-width="2" stroke-dasharray="8 6"/>`);
+    }
+    body.push(`<rect x="${x}" y="${pad}" width="${w}" height="${headH}" fill="#e8e8e8" stroke="none"/>`);
+    body.push(text(x + w / 2, pad + 27, name, 20));
+    if (notes[i]) {
+      wrapCjk(notes[i], Math.max(4, Math.floor(w / 17))).forEach((line, n) => {
+        if (n > 4) return;
+        body.push(text(x + w / 2, pad + headH + 32 + n * 26, line, 17));
+      });
+    }
+    x += w;
+  });
+  // 下端の位置（小学校は床から800mm前後）を注記として添える
+  body.push(text(width / 2, height - 12, '3600 × 1200mm（下端 床から約800mm）', 13));
+  return svg(width, height, body.join(''), '板書計画');
+}
+
+/** 日本語は語の切れ目が無いので、字数で折る。 */
+function wrapCjk(sentence, perLine) {
+  const out = [];
+  let line = '';
+  for (const ch of String(sentence)) {
+    if (ch === '/' || ch === '｜') { if (line) out.push(line); line = ''; continue; }
+    line += ch;
+    if (line.length >= perLine) { out.push(line); line = ''; }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+const FIGURES = { tenframe, dots, numberline, container, clock, tape, fraction, coins, grid, board };
 
 export const FIGURE_TYPES = Object.keys(FIGURES);
 

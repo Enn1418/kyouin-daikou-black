@@ -90,3 +90,17 @@ test('学級の実態の雛形に、架空の児童像を書かない', async ()
   assert.doesNotMatch(profile, /九九/);
   assert.match(profile, /- 学年:\s*$/m, '欄は空のまま置く');
 });
+
+test('評価の根拠は既定（当該学年）を書いた雛形として置かれる', async () => {
+  const root = path.join(await tmp(), 'v');
+  await scaffold(root);
+  const basis = await fs.readFile(path.join(root, '00_共通/評価の根拠.md'), 'utf8');
+  assert.match(basis, /当該学年/);
+  assert.match(basis, /特別支援学校/);
+  assert.match(basis, /記憶からは書きません/);
+
+  // 条文そのものは同梱しない（記憶から書いたものが根拠になってしまう）
+  const cos = await fs.readFile(path.join(root, '00_共通/学習指導要領/README.md'), 'utf8');
+  assert.match(cos, /貼り付けて/);
+  assert.doesNotMatch(cos, /第[1-6]学年の目標/);
+});

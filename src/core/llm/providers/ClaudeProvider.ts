@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { LLMMessage, LLMProvider, LLMResponse, LLMToolCall, LLMToolDefinition } from '../types';
+import { LLMAnyToolDefinition, LLMMessage, LLMProvider, LLMResponse, LLMToolCall, isServerTool } from '../types';
 import { DEFAULT_MODELS } from '../constants';
 
 const MAX_OUTPUT_TOKENS = 16000;
@@ -14,16 +14,21 @@ export class ClaudeProvider implements LLMProvider {
 
   async generateCompletion(
     messages: LLMMessage[],
-    tools?: LLMToolDefinition[],
+    tools?: LLMAnyToolDefinition[],
     systemInstruction?: string,
     modelName: string = DEFAULT_MODELS.text
   ): Promise<LLMResponse> {
     const claudeMessages = this.mapMessagesToClaude(messages);
-    const claudeTools = tools?.map(t => ({
-      name: t.function.name,
-      description: t.function.description,
-      input_schema: t.function.parameters || { type: 'object', properties: {} }
-    }));
+    // サーバ側ツール（web_search）は形が違うので変換せずそのまま渡す。
+    const claudeTools = tools?.map(t =>
+      isServerTool(t)
+        ? t.server
+        : {
+            name: t.function.name,
+            description: t.function.description,
+            input_schema: t.function.parameters || { type: 'object', properties: {} }
+          }
+    ) as any;
 
     console.log('sent to Claude');
     console.log('messages--------', claudeMessages);

@@ -19,8 +19,10 @@ export class GeminiProvider implements LLMProvider {
   ): Promise<LLMResponse> {
     const contents = this.mapMessagesToGemini(messages);
 
-    const systemTools: Tool[] | undefined = tools ? [{
-      functionDeclarations: tools.map(t => ({
+    // Anthropic のサーバ側ツールは Gemini には渡せないので落とす
+    const callable = tools?.filter((t: any) => t.type !== 'server') as any[] | undefined;
+    const systemTools: Tool[] | undefined = callable && callable.length ? [{
+      functionDeclarations: callable.map(t => ({
         name: t.function.name,
         description: t.function.description,
         parameters: this.mapToGeminiSchema(t.function.parameters)

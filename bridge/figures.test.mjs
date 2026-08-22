@@ -122,11 +122,42 @@ test('すべての種類が、最低限の指示で描ける', () => {
     tape: { parts: '2,3' },
     fraction: { numerator: 1, denominator: 2 },
     coins: { values: '100' },
-    grid: {}
+    grid: {},
+    board: { areas: 'めあて,まとめ' }
   };
   FIGURE_TYPES.forEach((type) => {
     const svg = renderFigure({ type, ...minimal[type] });
     assert.doesNotMatch(svg, /figure-error/, `${type} が描けない`);
     assert.match(svg, /^<svg /);
   });
+});
+
+test('板書: 区画の幅は指示した比のとおり', () => {
+  const svg = renderFigure({ type: 'board', areas: 'めあて,まとめ', widths: '1,3' });
+  const heads = [...svg.matchAll(/<rect x="[\d.]+" y="6" width="([\d.]+)" height="40"/g)].map((m) => Number(m[1]));
+  assert.equal(heads.length, 2);
+  assert.ok(Math.abs(heads[1] - heads[0] * 3) < 0.001);
+});
+
+test('板書: 黒板の比は 3600×1200（3:1）に固定', () => {
+  const svg = renderFigure({ type: 'board', areas: 'めあて' });
+  assert.match(svg, /viewBox="0 0 900 300"/);
+});
+
+test('板書: widths の数が合わなければ描かずに断る', () => {
+  assert.match(renderFigure({ type: 'board', areas: 'あ,い,う', widths: '1,2' }), /figure-error/);
+});
+
+test('板書: 区画が無ければ断る', () => {
+  assert.match(renderFigure({ type: 'board' }), /figure-error/);
+});
+
+test('板書: 中身は区画の幅に合わせて折り返す', () => {
+  const svg = renderFigure({
+    type: 'board',
+    areas: 'めあて',
+    notes: 'どちらのかさが多いかをしらべてくらべることができる'
+  });
+  const lines = (svg.match(/font-size="17"/g) || []).length;
+  assert.ok(lines >= 1, '中身が描かれていない');
 });

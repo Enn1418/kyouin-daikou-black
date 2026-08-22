@@ -129,7 +129,10 @@ async function readFile(relative) {
   if (st.size > MAX_READ_BYTES) {
     throw Object.assign(new Error('ファイルが大きすぎます（1MBまで）'), { status: 413 });
   }
-  return { path: relative, content: await fs.readFile(target, 'utf8') };
+  const content = await fs.readFile(target, 'utf8');
+  // メモ帳や PowerShell が付ける BOM を落とす。担任が手で作ったファイルでも
+  // 先頭に見えない文字が残らないようにする。
+  return { path: relative, content: content.replace(/^\uFEFF/, '') };
 }
 
 async function writeFile(relative, content) {

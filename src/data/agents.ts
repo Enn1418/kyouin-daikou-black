@@ -1,6 +1,8 @@
 import { USER_COLOR } from '../theme/brand';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
+import { SPECIAL_NEEDS_SETS } from './teacherAgents';
+
 export const USER_ID = 'user';
 export const USER_NAME = 'User';
 export const MAX_AGENTS = 5;
@@ -36,7 +38,7 @@ export interface AgenticSystem {
   leadAgent: AgentNode;
 }
 
-export const AGENTIC_SETS: AgenticSystem[] = [
+const BASE_SETS: AgenticSystem[] = [
   {
     id: 'unboring-net',
     teamName: 'unboring.net',
@@ -427,6 +429,9 @@ export const AGENTIC_SETS: AgenticSystem[] = [
     }
   }
 ];
+
+/** 特別支援学級向けチーム（docs/teacher-edition-design.md）を含めた全チーム。 */
+export const AGENTIC_SETS: AgenticSystem[] = [...BASE_SETS, ...SPECIAL_NEEDS_SETS];
 
 export function getAgentSet(id: string, customSystems: AgenticSystem[] = []): AgenticSystem {
   return (

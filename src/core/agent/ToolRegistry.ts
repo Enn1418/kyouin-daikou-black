@@ -1,6 +1,6 @@
 import { LLMMessage } from '../llm/types';
 import { isBridgeConnected } from '../../integration/store/bridgeStore';
-import { listFiles, readFile, writeFile } from './tools/fileTools';
+import { generateDrill, listFiles, readFile, writeFile } from './tools/fileTools';
 import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
@@ -39,6 +39,8 @@ export class ToolRegistry {
         return readFile(args);
       case 'write_file':
         return writeFile(args);
+      case 'generate_drill':
+        return generateDrill(args);
       case 'set_user_brief':
         return setUserBrief(agent, args);
       case 'propose_task':
@@ -93,6 +95,44 @@ export class ToolRegistry {
       );
 
       if (phase === 'working') {
+        tools.push({
+          type: 'function',
+          function: {
+            name: 'generate_drill',
+            description:
+              '反復練習のプリントを作る。計算問題を自分で並べてはいけない — 出題条件（型）をここに渡すと、' +
+              '数値の組み合わせと検算はブリッジ側が決定的に行う。児童用と解答は別ファイルになる。',
+            parameters: {
+              type: 'object',
+              properties: {
+                path: { type: 'string', description: '保存先の相対パス（.md）' },
+                title: { type: 'string' },
+                count: { type: 'integer', description: '問題数。既定20' },
+                seed: { type: 'integer', description: '同じ値なら同じ問題が出る。省略時はランダム' },
+                columns: { type: 'integer', description: '1行あたりの問題数（1〜4）。既定2' },
+                printTemplate: { type: 'string', enum: ['plain', 'grid', 'trace', 'spaced', 'one-task'] },
+                spec: {
+                  type: 'object',
+                  description: '出題条件',
+                  properties: {
+                    kind: { type: 'string', enum: ['add', 'sub', 'mul', 'div'] },
+                    a: { type: 'object', properties: { min: { type: 'integer' }, max: { type: 'integer' } } },
+                    b: { type: 'object', properties: { min: { type: 'integer' }, max: { type: 'integer' } } },
+                    carry: { type: 'boolean', description: 'たし算の繰り上がりを必須/禁止にする' },
+                    borrow: { type: 'boolean', description: 'ひき算の繰り下がりを必須/禁止にする' },
+                    tables: { type: 'array', items: { type: 'integer' }, description: 'かけ算で使う段の限定' },
+                    answerMax: { type: 'integer' },
+                    answerMin: { type: 'integer' },
+                    noZero: { type: 'boolean' }
+                  },
+                  required: ['kind']
+                }
+              },
+              required: ['path', 'spec']
+            }
+          }
+        });
+
         tools.push({
           type: 'function',
           function: {

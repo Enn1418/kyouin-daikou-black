@@ -85,5 +85,30 @@ export const bridge = {
     request<{ path: string; bytes: number }>('PUT', '/memory', { body: { content } }),
 
   exportHtml: (params: { path: string; title?: string; markdown: string; template?: string }) =>
-    request<{ path: string; template: string }>('POST', '/export', { body: params })
+    request<{ path: string; template: string }>('POST', '/export', { body: params }),
+
+  /**
+   * 反復ドリルの生成。問題そのものはモデルではなくブリッジ側が作る
+   * （数値の量産と検算は決定的なコードの仕事 — 設計 §8-12）。
+   */
+  generateDrill: (params: {
+    path: string;
+    title?: string;
+    count?: number;
+    seed?: number;
+    columns?: number;
+    template?: string;
+    answerKey?: boolean;
+    spec: Record<string, unknown>;
+  }) =>
+    request<{
+      path: string;
+      answerPath: string | null;
+      seed: number;
+      count: number;
+      requested: number;
+      available: number;
+      shortfall: number;
+      exported: string[];
+    }>('POST', '/generate/drill', { body: params })
 };

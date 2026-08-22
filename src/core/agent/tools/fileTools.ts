@@ -64,3 +64,40 @@ export async function writeFile(args: {
     return fail(e);
   }
 }
+
+/**
+ * 反復ドリルの生成。
+ *
+ * モデルは「型」（出題条件）だけを渡し、問題の量産と検算はブリッジ側の
+ * 決定的なコードが行う。モデルに計算問題を並べさせると答えを間違えるため、
+ * この分担は崩さない（設計 §8-12）。
+ */
+export async function generateDrill(args: {
+  path: string;
+  title?: string;
+  count?: number;
+  seed?: number;
+  columns?: number;
+  printTemplate?: string;
+  spec: Record<string, unknown>;
+}): Promise<string> {
+  if (!args?.path || !args?.spec) return 'ERROR: path と spec が必要です。';
+  try {
+    const r = await bridge.generateDrill({
+      path: args.path,
+      title: args.title,
+      count: args.count,
+      seed: args.seed,
+      columns: args.columns,
+      template: args.printTemplate,
+      spec: args.spec
+    });
+    const printed = r.exported.length ? `\n印刷用: ${r.exported.join(', ')}` : '';
+    const short = r.shortfall
+      ? `\n注意: 条件に合う問題が ${r.available} 通りしかなく、${r.count} 問だけ作りました。`
+      : '';
+    return `ドリルを作りました: ${r.path}（${r.count}問, seed ${r.seed}）\n解答: ${r.answerPath}${printed}${short}`;
+  } catch (e) {
+    return fail(e);
+  }
+}

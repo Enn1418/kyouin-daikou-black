@@ -19,6 +19,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
 import { BASE_CSS, TEMPLATE_CSS, TEMPLATE_NAMES, buildHtml } from './templates.mjs';
 
@@ -171,6 +172,52 @@ async function exportHtml({ path: relative, title, markdown, template }) {
   return { path: htmlPath, template: template || 'plain', cssSource: source };
 }
 
+/**
+ * 反復ドリルの生成。LLM に問題を並べさせず、型（出題条件）から決定的に作る。
+ * 児童用と教員用の解答は別ファイルにする（プリントに答えを載せないため）。
+ */
+async function generateDrillFiles(body) {
+  if (!body.path || !/\.md$/i.test(body.path)) {
+    throw Object.assign(new Error('path（.md）が必要です'), { status: 400 });
+  }
+  const seed = Number.isFinite(body.seed) ? body.seed : Math.floor(Math.random() * 1e9);
+  const result = generateDrill(body.spec || {}, body.count || 20, seed);
+
+  // 条件に合う問題が1問も無いとき、空のプリントを書いても害しかない
+  if (!result.problems.length) {
+    throw Object.assign(
+      new Error('条件に合う問題が1問もありません。範囲を広げるか、条件（繰り上がり・答えの上限など）をゆるめてください'),
+      { status: 400 }
+    );
+  }
+
+  const sheet = drillToMarkdown(result, { title: body.title, columns: body.columns });
+  const written = [await writeFile(body.path, sheet)];
+  const exported = [];
+  if (body.template) {
+    exported.push(await exportHtml({ path: body.path, title: body.title, markdown: sheet, template: body.template }));
+  }
+
+  let answerPath = null;
+  if (body.answerKey !== false) {
+    answerPath = body.path.replace(/\.md$/i, '_解答.md');
+    const answers = drillAnswersToMarkdown(result, { title: body.title });
+    written.push(await writeFile(answerPath, answers));
+  }
+
+  return {
+    path: body.path,
+    answerPath,
+    seed,
+    count: result.problems.length,
+    requested: result.requested,
+    available: result.available,
+    shortfall: result.shortfall,
+    exported: exported.map((e) => e.path),
+    written: written.map((w) => w.path)
+  };
+}
+
 const server = createServer(async (req, res) => {
   const headers = corsHeaders(req.headers.origin);
   if (!headers) return json(res, 403, { error: 'このオリジンからは利用できません' });
@@ -220,6 +267,9 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       if (typeof body.content !== 'string') throw Object.assign(new Error('content が必要です'), { status: 400 });
       return json(res, 200, await writeFile(MEMORY_PATH, body.content), headers);
+    }
+    if (req.method === 'POST' && url.pathname === '/generate/drill') {
+      return json(res, 200, await generateDrillFiles(await readBody(req)), headers);
     }
     if (req.method === 'POST' && url.pathname === '/export') {
       const body = await readBody(req);

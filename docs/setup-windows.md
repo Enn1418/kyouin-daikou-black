@@ -167,8 +167,11 @@ npm run dev
 
 ### ブラウザで開く
 
+`npm run dev` が**既定のブラウザを自動で開きます**。開かなかった場合は、
+ターミナル 2 に出ている URL をそのまま使ってください。
+
 ```
-http://localhost:3000/kyouin-daikou-black/
+  ➜  Local:   http://localhost:3000/kyouin-daikou-black/
 ```
 
 `http://localhost:3000/` だけだと 302 で転送されます。**末尾の `/kyouin-daikou-black/` まで**入れてください。
@@ -244,6 +247,8 @@ npm run dev
 |---|---|
 | 画面が真っ暗 | Chrome か Edge か（WebGPU 非対応のブラウザでは 3D が出ません） |
 | 404 になる | URL の末尾が `/kyouin-daikou-black/` になっているか |
+| ページが開けない・応答しない | ターミナル 2 に `Local: http://localhost:3000/...` が出ているか。出ていなければ dev が動いていない |
+| `Port 3000 is already in use` | 前の `npm run dev` が残っている。その窓で Ctrl+C するか、PC を再起動する |
 | 鍵アイコンが赤いまま | Save を押したか。キーの前後に空白が入っていないか |
 | 接続を確認が押せない | URL とトークンの両方が空欄でないか（どちらかが空だと押せません） |
 | 接続を確認が失敗する | ターミナル 1 が動いているか。トークンをコピーし損ねていないか |

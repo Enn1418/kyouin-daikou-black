@@ -1,6 +1,6 @@
 import { LLMMessage } from '../llm/types';
-import { isBridgeConnected } from '../../integration/store/bridgeStore';
-import { generateDrill, listFiles, readFile, writeFile } from './tools/fileTools';
+import { getBridgeRoots, isBridgeConnected } from '../../integration/store/bridgeStore';
+import { generateDrill, listFiles, readFile, searchFiles, writeFile } from './tools/fileTools';
 import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
@@ -49,6 +49,8 @@ export class ToolRegistry {
         return listFiles(args);
       case 'read_file':
         return readFile(args);
+      case 'search_files':
+        return searchFiles(args);
       case 'write_file':
         return writeFile(args);
       case 'generate_drill':
@@ -96,16 +98,27 @@ export class ToolRegistry {
     //    Reading is allowed in every phase — the lead needs the class profile
     //    while the brief is still being discussed. Writing is working-phase only.
     if (isBridgeConnected()) {
+      // 参照フォルダ（Obsidian の保管庫など）があれば、どこを見られるかを説明に載せる。
+      // 名前を知らせないと、エージェントは教材フォルダしか見に行かない。
+      const roots = getBridgeRoots();
+      const refs = roots.filter((r) => !r.writable).map((r) => r.name);
+      const rootNames = roots.map((r) => r.name);
+      const rootHint = refs.length
+        ? `フォルダ名を root で選べる（${rootNames.join(' / ')}）。省略すると教材フォルダ。` +
+          `${refs.join('・')} は担任の資料で、読むだけ（書き込みはできない）。`
+        : '';
+
       tools.push(
         {
           type: 'function',
           function: {
             name: 'list_files',
-            description: '教材フォルダの中身を一覧する。去年の教材や共通資料を探すときに使う。',
+            description: `教材フォルダの中身を一覧する。去年の教材や共通資料を探すときに使う。${rootHint}`,
             parameters: {
               type: 'object',
               properties: {
-                dir: { type: 'string', description: 'フォルダの相対パス。省略時はルート。例: 01_教材/算数' }
+                dir: { type: 'string', description: 'フォルダの相対パス。省略時はルート。例: 01_教材/算数' },
+                ...(refs.length ? { root: { type: 'string', enum: rootNames, description: '見るフォルダ。省略時は教材' } } : {})
               }
             }
           }
@@ -116,15 +129,40 @@ export class ToolRegistry {
             name: 'read_file',
             description:
               '教材フォルダのファイルを読む。学級の実態（00_共通/学級の実態.md）、自立活動の区分・項目の一次資料、' +
-              '去年の教材などは、推測せず必ずこれで読むこと。',
+              `去年の教材などは、推測せず必ずこれで読むこと。${rootHint}`,
             parameters: {
               type: 'object',
-              properties: { path: { type: 'string', description: 'ファイルの相対パス' } },
+              properties: {
+                path: { type: 'string', description: 'ファイルの相対パス' },
+                ...(refs.length ? { root: { type: 'string', enum: rootNames, description: '読むフォルダ。省略時は教材' } } : {})
+              },
               required: ['path']
             }
           }
         }
       );
+
+      if (refs.length) {
+        tools.push({
+          type: 'function',
+          function: {
+            name: 'search_files',
+            description:
+              `フォルダ全体から語を探す。${refs.join('・')} は数千ファイルになりうるので、` +
+              '一覧を見るのではなくここで探す。当たった箇所の前後だけ返るので、' +
+              '必要なものを read_file で読む。語を複数書くと「すべて含む」で絞られる。',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: '探す語。空白区切りで複数指定できる' },
+                root: { type: 'string', enum: rootNames, description: '探すフォルダ。省略時は教材' },
+                limit: { type: 'integer', description: '返す件数。既定20、最大50' }
+              },
+              required: ['query']
+            }
+          }
+        });
+      }
 
       if (phase === 'working') {
         tools.push({

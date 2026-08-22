@@ -1,4 +1,4 @@
-import { useBridgeStore, getBridgeConfig } from '../../integration/store/bridgeStore';
+import { BridgeRoot, useBridgeStore, getBridgeConfig } from '../../integration/store/bridgeStore';
 
 /**
  * ローカルブリッジ（bridge/server.mjs）のクライアント。
@@ -85,10 +85,11 @@ export async function checkBridge(): Promise<boolean> {
   const { setStatus } = useBridgeStore.getState();
   setStatus('checking');
   try {
-    const health = await request<{ ok: boolean; root: string }>('GET', '/health');
+    const health = await request<{ ok: boolean; root: string; roots?: BridgeRoot[] }>('GET', '/health');
     // /health は認証不要なので、トークンが正しいかは実際の読み取りで確かめる
     await request<unknown>('GET', '/files', { query: { dir: '.' } });
     setStatus('connected', { rootName: health.root, error: null });
+    useBridgeStore.getState().setRoots(health.roots || []);
     await loadMemory();
     return true;
   } catch (e) {
@@ -111,12 +112,30 @@ export async function autoConnectBridge(): Promise<void> {
   await checkBridge();
 }
 
-export const bridge = {
-  listFiles: (dir: string) =>
-    request<{ dir: string; entries: FileEntry[]; truncated: boolean }>('GET', '/files', { query: { dir } }),
+export interface SearchHit {
+  root: string;
+  path: string;
+  snippet: string;
+}
 
-  readFile: (path: string) =>
-    request<{ path: string; content: string }>('GET', '/file', { query: { path } }),
+export const bridge = {
+  listFiles: (dir: string, root?: string) =>
+    request<{ root: string; dir: string; entries: FileEntry[]; truncated: boolean }>('GET', '/files', {
+      query: { dir, ...(root ? { root } : {}) }
+    }),
+
+  readFile: (path: string, root?: string) =>
+    request<{ root: string; path: string; content: string }>('GET', '/file', {
+      query: { path, ...(root ? { root } : {}) }
+    }),
+
+  /** 参照フォルダ（Obsidian の保管庫など）から語を探す。 */
+  search: (q: string, root?: string, limit?: number) =>
+    request<{ root: string; query: string; hits: SearchHit[]; scanned: number; truncated: boolean }>(
+      'GET',
+      '/search',
+      { query: { q, ...(root ? { root } : {}), ...(limit ? { limit: String(limit) } : {}) } }
+    ),
 
   writeFile: (path: string, content: string) =>
     request<{ path: string; bytes: number; backedUp: boolean }>('PUT', '/file', {

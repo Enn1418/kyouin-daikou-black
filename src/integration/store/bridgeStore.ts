@@ -3,6 +3,13 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type BridgeStatus = 'unknown' | 'checking' | 'connected' | 'error';
 
+/** ブリッジが扱えるフォルダ。教材フォルダだけが書き込み可。 */
+export interface BridgeRoot {
+  name: string;
+  writable: boolean;
+  base: string;
+}
+
 interface BridgeState {
   /** ローカルブリッジの URL。既定はブリッジ側の既定ポート。 */
   url: string;
@@ -17,9 +24,12 @@ interface BridgeState {
    * 実体はフォルダ側にあるので localStorage には持たない（接続時に読み直す）。
    */
   memory: string;
+  /** 教材フォルダと参照フォルダ。接続のたびに読み直す。 */
+  roots: BridgeRoot[];
 
   setConfig: (config: { url?: string; token?: string }) => void;
   setMemory: (memory: string) => void;
+  setRoots: (roots: BridgeRoot[]) => void;
   setStatus: (status: BridgeStatus, detail?: { rootName?: string | null; error?: string | null }) => void;
   reset: () => void;
 }
@@ -35,6 +45,7 @@ export const useBridgeStore = create<BridgeState>()(
       rootName: null,
       lastError: null,
       memory: '',
+      roots: [],
 
       setConfig: (config) =>
         set((s) => ({
@@ -46,6 +57,8 @@ export const useBridgeStore = create<BridgeState>()(
 
       setMemory: (memory) => set({ memory }),
 
+      setRoots: (roots) => set({ roots }),
+
       setStatus: (status, detail) =>
         set((s) => ({
           status,
@@ -54,7 +67,7 @@ export const useBridgeStore = create<BridgeState>()(
         })),
 
       reset: () =>
-        set({ url: DEFAULT_BRIDGE_URL, token: '', status: 'unknown', rootName: null, lastError: null, memory: '' })
+        set({ url: DEFAULT_BRIDGE_URL, token: '', status: 'unknown', rootName: null, lastError: null, memory: '', roots: [] })
     }),
     {
       name: 'bridge-storage',
@@ -69,6 +82,11 @@ export const useBridgeStore = create<BridgeState>()(
 export function getBridgeConfig() {
   const { url, token, status } = useBridgeStore.getState();
   return { url, token, status };
+}
+
+/** 参照フォルダを含むフォルダ一覧。ツール定義に載せる。 */
+export function getBridgeRoots(): BridgeRoot[] {
+  return useBridgeStore.getState().roots;
 }
 
 /** 蓄積された記憶。React の外（プロンプト構築）から読む。 */

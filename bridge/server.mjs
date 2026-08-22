@@ -22,7 +22,9 @@ import path from 'node:path';
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
 import { mergeMemoryNote } from './memory.mjs';
+import { Roots, parseRefArg } from './roots.mjs';
 import { scaffold } from './scaffold.mjs';
+import { searchRoot } from './search.mjs';
 import { BASE_CSS, TEMPLATE_CSS, TEMPLATE_NAMES, buildHtml } from './templates.mjs';
 
 const ALLOWED_EXTENSIONS = new Set(['.md', '.txt', '.csv', '.json', '.html']);
@@ -33,12 +35,16 @@ const MEMORY_PATH = '99_記憶/memory.md';
 const TEMPLATE_DIR = '03_印刷テンプレート';
 
 function parseArgs(argv) {
-  const args = { root: process.cwd(), port: 5174, token: process.env.KYOUIN_BRIDGE_TOKEN || '' };
+  const args = { root: process.cwd(), port: 5174, token: process.env.KYOUIN_BRIDGE_TOKEN || '', refs: [] };
   for (let i = 0; i < argv.length; i++) {
     const next = () => argv[++i];
     if (argv[i] === '--root') args.root = next();
     else if (argv[i] === '--port') args.port = Number(next());
     else if (argv[i] === '--token') args.token = next();
+    else if (argv[i] === '--ref') {
+      const ref = parseRefArg(next());
+      if (ref) args.refs.push(ref);
+    }
     else if (argv[i] === '--init') args.init = true;
   }
   return args;
@@ -46,6 +52,9 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(2));
 const ROOT = path.resolve(args.root);
+
+// 教材フォルダ（書き込み可）＋ 参照フォルダ（読み取り専用）
+const ROOTS = new Roots(ROOT, args.refs);
 const TOKEN_FILE = '.bridge-token';
 
 /**
@@ -79,14 +88,9 @@ function resolveToken(explicit) {
 
 const TOKEN = resolveToken(args.token);
 
-/** root 配下に解決されることを保証する。外に出るパスは例外。 */
-function safeResolve(relative) {
-  const target = path.resolve(ROOT, relative || '.');
-  const rel = path.relative(ROOT, target);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw Object.assign(new Error('教材フォルダの外は扱えません'), { status: 403 });
-  }
-  return target;
+/** 指定フォルダ配下に解決されることを保証する。外に出るパスは例外。 */
+function safeResolve(relative, rootName) {
+  return ROOTS.resolve(relative, rootName).target;
 }
 
 function assertAllowedExtension(filePath) {
@@ -134,14 +138,14 @@ async function readBody(req) {
   }
 }
 
-async function listFiles(dir) {
-  const target = safeResolve(dir);
+async function listFiles(dir, rootName) {
+  const { root, target } = ROOTS.resolve(dir, rootName);
   const dirents = await fs.readdir(target, { withFileTypes: true });
   const entries = [];
   for (const d of dirents.slice(0, MAX_ENTRIES)) {
     if (d.name.startsWith('.')) continue;
     const full = path.join(target, d.name);
-    const rel = path.relative(ROOT, full).split(path.sep).join('/');
+    const rel = ROOTS.relative(root, full);
     if (d.isDirectory()) {
       entries.push({ name: d.name, path: rel, type: 'dir' });
     } else if (ALLOWED_EXTENSIONS.has(path.extname(d.name).toLowerCase())) {
@@ -150,11 +154,11 @@ async function listFiles(dir) {
     }
   }
   entries.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name, 'ja') : a.type === 'dir' ? -1 : 1));
-  return { dir: dir || '.', entries, truncated: dirents.length > MAX_ENTRIES };
+  return { root: root.name, dir: dir || '.', entries, truncated: dirents.length > MAX_ENTRIES };
 }
 
-async function readFile(relative) {
-  const target = safeResolve(relative);
+async function readFile(relative, rootName) {
+  const { root, target } = ROOTS.resolve(relative, rootName);
   assertAllowedExtension(target);
   const st = await fs.stat(target);
   if (st.size > MAX_READ_BYTES) {
@@ -163,11 +167,12 @@ async function readFile(relative) {
   const content = await fs.readFile(target, 'utf8');
   // メモ帳や PowerShell が付ける BOM を落とす。担任が手で作ったファイルでも
   // 先頭に見えない文字が残らないようにする。
-  return { path: relative, content: content.replace(/^\uFEFF/, '') };
+  return { root: root.name, path: relative, content: content.replace(/^\uFEFF/, '') };
 }
 
-async function writeFile(relative, content) {
-  const target = safeResolve(relative);
+async function writeFile(relative, content, rootName) {
+  ROOTS.assertWritable(rootName);              // 参照フォルダには書かせない
+  const target = safeResolve(relative, rootName);
   assertAllowedExtension(target);
   await fs.mkdir(path.dirname(target), { recursive: true });
 
@@ -268,7 +273,7 @@ const server = createServer(async (req, res) => {
 
   // /health だけは認証不要（アプリ側が接続状態を確かめるため）
   if (url.pathname === '/health') {
-    return json(res, 200, { ok: true, root: path.basename(ROOT), templates: TEMPLATE_NAMES }, headers);
+    return json(res, 200, { ok: true, root: path.basename(ROOT), roots: ROOTS.list(), templates: TEMPLATE_NAMES }, headers);
   }
 
   const auth = req.headers.authorization || '';
@@ -278,19 +283,28 @@ const server = createServer(async (req, res) => {
 
   try {
     if (req.method === 'GET' && url.pathname === '/files') {
-      return json(res, 200, await listFiles(url.searchParams.get('dir') || '.'), headers);
+      return json(res, 200, await listFiles(url.searchParams.get('dir') || '.', url.searchParams.get('root')), headers);
     }
     if (req.method === 'GET' && url.pathname === '/file') {
       const p = url.searchParams.get('path');
       if (!p) throw Object.assign(new Error('path が必要です'), { status: 400 });
-      return json(res, 200, await readFile(p), headers);
+      return json(res, 200, await readFile(p, url.searchParams.get('root')), headers);
+    }
+    if (req.method === 'GET' && url.pathname === '/search') {
+      const root = ROOTS.get(url.searchParams.get('root'));
+      return json(res, 200, await searchRoot(root, url.searchParams.get('q'), {
+        extensions: ALLOWED_EXTENSIONS,
+        limit: url.searchParams.get('limit'),
+        dir: url.searchParams.get('dir')
+      }), headers);
     }
     if (req.method === 'PUT' && url.pathname === '/file') {
       const p = url.searchParams.get('path');
       if (!p) throw Object.assign(new Error('path が必要です'), { status: 400 });
       const body = await readBody(req);
       if (typeof body.content !== 'string') throw Object.assign(new Error('content が必要です'), { status: 400 });
-      return json(res, 200, await writeFile(p, body.content), headers);
+      // root を無視して教材フォルダに書くと、頼んだ場所と違うところに保存されて気づけない
+      return json(res, 200, await writeFile(p, body.content, url.searchParams.get('root')), headers);
     }
     if (req.method === 'GET' && url.pathname === '/memory') {
       try {
@@ -354,6 +368,10 @@ server.listen(args.port, '127.0.0.1', async () => {
   console.log('');
   console.log('  教材フォルダ ブリッジを起動しました');
   console.log(`  フォルダ : ${ROOT}`);
+  ROOTS.list().filter((r) => !r.writable).forEach((r) => {
+    const full = args.refs.find((x) => path.basename(path.resolve(x.path)) === r.base);
+    console.log(`  参照     : ${r.name} → ${full ? path.resolve(full.path) : r.base}（読み取り専用）`);
+  });
   if (created.length) {
     console.log('');
     console.log('  雛形を作りました:');

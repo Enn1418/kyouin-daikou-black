@@ -101,7 +101,7 @@ interface CoreState {
 
   // ── UI ───────────────────────────────────────────────────────
   isKanbanOpen: boolean
-  viewMode: 'simulation' | 'design';
+  viewMode: 'floor' | 'simulation' | 'design';
   isLogOpen: boolean
   isFinalOutputOpen: boolean;
   logFilterAgentIndex: number | null;
@@ -147,7 +147,7 @@ interface CoreState {
   setFinalOutputOpen: (open: boolean) => void;
   setIsResizing: (isResizing: boolean) => void;
   resetProject: () => void;
-  setViewMode: (mode: 'simulation' | 'design') => void;
+  setViewMode: (mode: 'floor' | 'simulation' | 'design') => void;
 
   // ── Simulation Sync ──────────────────────────────────────────
   setAgentHistory: (agentIndex: number, history: LLMMessage[]) => void;
@@ -184,7 +184,7 @@ export const useCoreStore = create<CoreState>()(
       isFinalOutputOpen: false,
       logFilterAgentIndex: null,
       isResizing: false,
-      viewMode: 'simulation',
+      viewMode: 'floor',
 
       setViewMode: (viewMode) => set({ viewMode }),
 

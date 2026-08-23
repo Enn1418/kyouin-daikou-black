@@ -9,6 +9,7 @@ import { getOfficeTheme, useAppearanceStore } from './integration/store/appearan
 import { useCoreStore } from './integration/store/coreStore';
 import { ActionLogPanel } from './interface/ActionLogPanel';
 import { FinalOutputModal } from './interface/FinalOutputModal';
+import FloorView from './interface/FloorView';
 import Header from './interface/Header';
 import InspectorPanel from './interface/InspectorPanel';
 import { KanbanPanel } from './interface/KanbanPanel';
@@ -92,15 +93,17 @@ const App: React.FC = () => {
 
         <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
           {/* Left: Log panel */}
-          {isLogOpen && !isFullscreen && viewMode !== 'design' && <ActionLogPanel />}
+          {isLogOpen && !isFullscreen && viewMode === 'simulation' && <ActionLogPanel />}
 
           {/* Center: canvas + kanban drawer stacked */}
           <div className="relative flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-zinc-50">
 
+            {/* フロア図（全部屋の俯瞰）。既定の画面 */}
+            {viewMode === 'floor' && <FloorView />}
+
             {/* Simulation Context - Persistently Mounted */}
             <div
-              className="flex-1 flex flex-col min-w-0 min-h-0"
-              style={{ visibility: viewMode === 'design' ? 'hidden' : 'visible' }}
+              className={viewMode === 'simulation' ? 'flex-1 flex flex-col min-w-0 min-h-0' : 'hidden'}
             >
               <SimulationView canvasRef={canvasRef} isFullscreen={isFullscreen} setIsFullscreen={setIsFullscreen} />
 
@@ -119,7 +122,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Right: Inspector sidebar */}
-          {!isFullscreen && viewMode !== 'design' && <InspectorPanel />}
+          {!isFullscreen && viewMode === 'simulation' && <InspectorPanel />}
         </div>
 
         {/* Design Mode Overlay (Modal) */}

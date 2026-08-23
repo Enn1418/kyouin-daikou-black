@@ -1,4 +1,4 @@
-import { FolderOpen, Info, KeyRound, Maximize2, Palette, Settings } from 'lucide-react';
+import { FolderOpen, Info, KeyRound, LayoutGrid, Maximize2, Palette, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import packageJson from '../../package.json';
 import { OFFICE_THEMES, useAppearanceStore } from '../integration/store/appearanceStore';
@@ -12,7 +12,7 @@ const version = packageJson.version;
 
 const Header: React.FC = () => {
   const { llmConfig, isBYOKOpen, setBYOKOpen } = useUiStore();
-  const { setViewMode } = useCoreStore();
+  const { setViewMode, viewMode } = useCoreStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const { themeId, setThemeId } = useAppearanceStore();
@@ -88,6 +88,21 @@ const Header: React.FC = () => {
 
       {/* Right: Global Controls */}
       <div className="flex items-center gap-3">
+
+        {/* フロア図と3Dの切り替え。フロア図が既定 */}
+        <button
+          onClick={() => setViewMode(viewMode === 'floor' ? 'simulation' : 'floor')}
+          className={`flex items-center gap-2 px-3 py-1 rounded-lg transition-all active:scale-95 cursor-pointer h-9 shrink-0 border
+            ${viewMode === 'floor'
+              ? 'bg-white border-zinc-200 text-darkDelegation shadow-sm'
+              : 'bg-darkDelegation border-transparent text-white shadow-lg shadow-black/10'}`}
+          title={viewMode === 'floor' ? '3Dの職員室へ' : 'フロア図（全部屋）へ'}
+        >
+          <LayoutGrid size={14} />
+          <span className="text-[10px] font-black uppercase tracking-wider ml-1 hidden sm:inline">
+            {viewMode === 'floor' ? '3Dへ' : 'フロア図'}
+          </span>
+        </button>
 
         <button
           onClick={() => setViewMode('design')}

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getAgentSet, getAllAgents } from '../data/agents';
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand';
-import { useCoreStore } from '../integration/store/coreStore';
+import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { useSceneManager } from '../simulation/SceneContext';
@@ -34,9 +34,9 @@ const ChatPanel: React.FC = () => {
 
   // Combine store messages with project histories if needed,
   // but unified useCoreStore is the source of truth for history.
-  const coreStore = useCoreStore();
+  const room = useRoom();
   const chatMessages = selectedNpcIndex !== null
-    ? (coreStore.agentHistories[selectedNpcIndex] || [])
+    ? (room.agentHistories[selectedNpcIndex] || [])
     : [];
 
 
@@ -154,13 +154,13 @@ const ChatPanel: React.FC = () => {
                               <FileSearch size={18} />
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
-                              {coreStore.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold'
+                              {room.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold'
                                 ? 'Review Requested'
                                 : 'Review Processed'}
                             </span>
                           </div>
 
-                          {coreStore.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold' && (
+                          {room.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold' && (
                             <button
                               onClick={() => setActiveAuditTaskId(msg.metadata.reviewTaskId)}
                               className="flex-1 min-w-[120px] px-4 py-2 bg-darkDelegation text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all shadow-sm whitespace-nowrap"

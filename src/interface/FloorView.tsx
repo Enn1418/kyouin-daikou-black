@@ -2,9 +2,9 @@ import React from 'react';
 import { ArrowRight, ChevronDown, ChevronRight, Loader2, UserCheck } from 'lucide-react';
 
 import { AGENTIC_SETS, AgenticSystem, getAllAgents } from '../data/agents';
-import { useCoreStore } from '../integration/store/coreStore';
+import { EMPTY_ROOM, RoomState as RoomData, useCoreStore } from '../integration/store/coreStore';
 import { useTeamStore } from '../integration/store/teamStore';
-import { useUiStore } from '../integration/store/uiStore';
+import { agentStatusKey, useUiStore } from '../integration/store/uiStore';
 
 /**
  * 職員室のフロア図。
@@ -16,9 +16,8 @@ import { useUiStore } from '../integration/store/uiStore';
  * 部屋は `AGENTIC_SETS` から自動で並ぶので、チームを足せば部屋が増える。
  * 位置を手で決めないのは、今後増やしていく前提だから。
  *
- * いまの制約: 進行中の状態（タスク・担当の様子）を持てるのは**選ばれている部屋だけ**。
- * ほかの部屋は「待機」と表示する。同時に動かすには状態を部屋ごとに分ける必要があり、
- * それは別の作業（docs/floor-plan.md）。
+ * 状態は部屋ごとに分かれている（coreStore.rooms）。部屋は同時に動き、
+ * ここは全部屋の実状態をそのまま映す。
  */
 
 type RoomActivity = '未使用' | '待機' | '作業中' | '承認待ち' | '完了';
@@ -50,7 +49,8 @@ const AGENT_LOOK: Record<string, { text: string; className: string }> = {
 
 const FloorView: React.FC = () => {
   const { selectedAgentSetId, customSystems, setActiveTeam } = useTeamStore();
-  const { tasks, phase, actionLog, setViewMode } = useCoreStore();
+  const rooms = useCoreStore((s) => s.rooms);
+  const setViewMode = useCoreStore((s) => s.setViewMode);
   const agentStatuses = useUiStore((s) => s.agentStatuses);
 
   const [showAnnex, setShowAnnex] = React.useState(false);
@@ -68,28 +68,23 @@ const FloorView: React.FC = () => {
     };
   }, [customSystems]);
 
-  const lastAction = actionLog.length ? actionLog[actionLog.length - 1] : null;
-
+  // 部屋ごとの実状態。すべての部屋が同時に動くので、全部屋ぶん読む
   const stateOf = (room: AgenticSystem): RoomState => {
-    if (room.id !== selectedAgentSetId) {
+    const data: RoomData = rooms[room.id] ?? EMPTY_ROOM;
+    const total = data.tasks.length;
+    if (total === 0 && data.phase === 'idle') {
       return { activity: '未使用', done: 0, total: 0, awaiting: 0, note: '' };
     }
-    const total = tasks.length;
-    const done = tasks.filter((t) => t.status === 'done').length;
-    const awaiting = tasks.filter((t) => t.status === 'on_hold' && t.requiresUserApproval).length;
+    const done = data.tasks.filter((t) => t.status === 'done').length;
+    const awaiting = data.tasks.filter((t) => t.status === 'on_hold' && t.requiresUserApproval).length;
 
     let activity: RoomActivity = '待機';
     if (awaiting > 0) activity = '承認待ち';
-    else if (phase === 'working') activity = '作業中';
-    else if (phase === 'done') activity = '完了';
+    else if (data.phase === 'working') activity = '作業中';
+    else if (data.phase === 'done') activity = '完了';
 
-    return {
-      activity,
-      done,
-      total,
-      awaiting,
-      note: lastAction ? lastAction.action : ''
-    };
+    const lastAction = data.actionLog.length ? data.actionLog[data.actionLog.length - 1] : null;
+    return { activity, done, total, awaiting, note: lastAction ? lastAction.action : '' };
   };
 
   return (
@@ -139,11 +134,34 @@ const FloorView: React.FC = () => {
                   </span>
                 </header>
 
-                {/* 部屋の中。机がひとつずつ担当 */}
-                <div className="p-3 bg-[repeating-linear-gradient(45deg,#FAFAFA,#FAFAFA_10px,#F4F4F5_10px,#F4F4F5_20px)]">
+                {/* 部屋の中。床はその部屋の色でうっすら塗る（どの部屋か一目で分かるように） */}
+                <div
+                  className="p-3"
+                  style={{
+                    background: `repeating-linear-gradient(45deg, ${room.color}0A, ${room.color}0A 10px, ${room.color}17 10px, ${room.color}17 20px)`
+                  }}
+                >
+                  {/* 備品。間取り図なので上から見た記号で置く: ホワイトボード・本棚・観葉植物 */}
+                  <div className="flex items-end gap-2 mb-2 px-0.5">
+                    <div
+                      className="h-2.5 flex-1 rounded-sm bg-white border"
+                      style={{ borderColor: `${room.color}88` }}
+                      title="ホワイトボード"
+                    />
+                    <div className="flex items-end gap-[2px]" title="本棚">
+                      {[10, 7, 9, 6].map((h, i) => (
+                        <span
+                          key={i}
+                          className="w-1 rounded-[1px]"
+                          style={{ height: `${h}px`, backgroundColor: room.color, opacity: 0.45 + (i % 2) * 0.25 }}
+                        />
+                      ))}
+                    </div>
+                    <span className="w-3 h-3 rounded-full bg-emerald-500/80 ring-2 ring-emerald-200" title="観葉植物" />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     {agents.map((agent) => {
-                      const status = isActive ? (agentStatuses[agent.index] || 'idle') : 'idle';
+                      const status = agentStatuses[agentStatusKey(room.id, agent.index)] || 'idle';
                       const look = AGENT_LOOK[status] || AGENT_LOOK.idle;
                       const isLead = agent.index === 1;
                       return (
@@ -151,6 +169,7 @@ const FloorView: React.FC = () => {
                           key={agent.id}
                           className={`rounded-xl bg-white px-2.5 py-2 flex items-center gap-2 border
                             ${isLead ? 'border-zinc-300 col-span-2' : 'border-zinc-100'}`}
+                          style={{ borderTop: `3px solid ${agent.color}` }}
                         >
                           <span
                             className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-black text-white"
@@ -258,8 +277,8 @@ const FloorView: React.FC = () => {
         )}
 
         <p className="mt-8 text-[10px] text-zinc-400 leading-relaxed">
-          いまは、進行中の状態を持てるのが「選んでいる部屋」だけです。ほかの部屋は待機と表示されます。
-          複数の部屋を同時に動かすには、仕事の状態を部屋ごとに分ける必要があります（作業中）。
+          部屋は同時に動きます。別の部屋に入っても、前の部屋の仕事は続きます。
+          仕事の中身（承認・差し戻し）は、その部屋に入ってから行ってください。
         </p>
       </div>
     </div>

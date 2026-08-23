@@ -5,7 +5,8 @@ import { SPECIAL_NEEDS_SETS } from './teacherAgents';
 
 export const USER_ID = 'user';
 export const USER_NAME = 'User';
-export const MAX_AGENTS = 5;
+// 役割を細かく区切って人数を増やしたい（担任の要望）ので、1部屋の上限は10人。
+export const MAX_AGENTS = 10;
 export { USER_COLOR };
 /**
  * 起動時に選ばれているチーム。このリポジトリは特別支援学級の教材作成が主目的なので、

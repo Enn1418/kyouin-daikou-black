@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, MessageSquareWarning, Trash2, GitPullRequest
 import React, { useState } from 'react'
 import { getAllAgents, USER_NAME } from '../data/agents'
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand'
-import { useCoreStore, type Task, type TaskStatus } from '../integration/store/coreStore'
+import { useCoreStore, type Task, type TaskStatus , useRoom } from '../integration/store/coreStore'
 import { getActiveAgentSet, useTeamStore } from '../integration/store/teamStore'
 import { useUiStore } from '../integration/store/uiStore'
 import DeleteTaskModal from './DeleteTaskModal'
@@ -145,7 +145,7 @@ function TaskCard({ task }: { task: Task; key?: string }) {
 }
 
 export function KanbanPanel({ height = 320 }: KanbanPanelProps) {
-  const { tasks } = useCoreStore()
+  const { tasks } = useRoom()
 
   return (
     <div

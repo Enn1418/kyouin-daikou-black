@@ -1,13 +1,13 @@
-import { AgentNode, AGENTIC_SETS } from '../../data/agents';
+import { AgentNode, getAgentSet } from '../../data/agents';
 import { getBridgeMemory, isBridgeConnected } from '../../integration/store/bridgeStore';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { getRoom } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 
 export class PromptBuilder {
   /**
    * Builds the system prompt for an agent based on their role and current project context.
    */
-  public static buildSystemPrompt(agent: AgentNode, phase: string, brief: string, allAgents: any[]): string {
+  public static buildSystemPrompt(agent: AgentNode, phase: string, brief: string, allAgents: any[], roomId: string): string {
     const isLead = agent.index === 1;
     const team = allAgents
       .map((a: any) => `[${a.data.index}] ${a.data.name}`)
@@ -19,7 +19,7 @@ export class PromptBuilder {
       done: 'Project finished.'
     };
 
-    const tasks = useCoreStore.getState().tasks;
+    const tasks = getRoom(roomId).tasks;
     const board = tasks.length > 0
       ? tasks.map(t => {
           const agentName = allAgents.find((a: any) => a.data.index === t.assignedAgentId)?.data?.name || `Agent ${t.assignedAgentId}`;
@@ -36,11 +36,10 @@ export class PromptBuilder {
         }).join('\n\n')
       : 'Empty';
 
-    const selectedTeamId = useTeamStore.getState().selectedAgentSetId;
-    const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === selectedTeamId) 
-      || AGENTIC_SETS.find(s => s.id === selectedTeamId);
-      
-    const referenceImages = useCoreStore.getState().referenceImages;
+    // 部屋のチーム定義。画面がどこを見ていても、この部屋の規約で書く
+    const activeTeam = getAgentSet(roomId, useTeamStore.getState().customSystems);
+
+    const referenceImages = getRoom(roomId).referenceImages;
     const hasImages = referenceImages.length > 0 && (activeTeam?.outputType === 'image' || activeTeam?.outputType === 'video');
     
     let modelLimitInfo = '';

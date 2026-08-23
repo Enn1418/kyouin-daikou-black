@@ -2,7 +2,7 @@ import { Check, ChevronDown, ChevronRight, Copy, Download, Eye, Filter, MessageS
 import React, { useEffect, useRef, useState } from 'react'
 import { getAgentSet, getAllAgents } from '../data/agents'
 import { USER_COLOR, USER_COLOR_LIGHT } from '../theme/brand'
-import { DebugLogEntry, useCoreStore } from '../integration/store/coreStore'
+import { DebugLogEntry, useCoreStore , useRoom } from '../integration/store/coreStore'
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore'
 import { formatTokens } from './ProjectView'
 
@@ -325,7 +325,8 @@ ${JSON.stringify(entry.raw, null, 2)}
 };
 
 export function ActionLogPanel() {
-    const { setLogOpen, actionLog, debugLog, logFilterAgentIndex } = useCoreStore()
+    const { setLogOpen, logFilterAgentIndex } = useCoreStore()
+    const { actionLog, debugLog } = useRoom()
     const activeTeam = useActiveTeam();
     const agents = getAllAgents(activeTeam);
     const [activeTab, setActiveTab] = useState<'activity' | 'technical'>('technical')

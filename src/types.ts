@@ -27,8 +27,9 @@ export interface CharacterState {
   inspectorTab: 'info' | 'chat';
   
   // Real-time agent statuses for 3D synchronization
-  agentStatuses: Record<number, AgentState>;
-  setAgentStatus: (index: number, status: AgentState) => void;
+  /** 鍵は agentStatusKey(roomId, index)。部屋を跨ぐと同じ番号が居るため、番号だけでは引けない。 */
+  agentStatuses: Record<string, AgentState>;
+  setAgentStatus: (roomId: string, index: number, status: AgentState) => void;
 
   isBYOKOpen: boolean;
   byokError: string | null;

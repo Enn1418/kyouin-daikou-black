@@ -2,14 +2,16 @@ import { LLMMessage } from '../llm/types';
 import { GeminiProvider } from '../llm/providers/GeminiProvider';
 import { ClaudeProvider } from '../llm/providers/ClaudeProvider';
 import { useUiStore } from '../../integration/store/uiStore';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { getRoom, useCoreStore } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 import { ToolRegistry } from './ToolRegistry';
 import { PromptBuilder } from './PromptBuilder';
-import { AGENTIC_SETS, AgentNode } from '../../data/agents';
+import { AgentNode, getAgentSet } from '../../data/agents';
 
 export interface BrainHost {
   data: AgentNode;
+  /** この脳が属する部屋。部屋を跨いで同じ番号の担当が居るため、必ず持つ。 */
+  roomId: string;
   simulation: {
     getAllAgents: () => any[];
     processScheduledTasks: () => void;
@@ -37,14 +39,16 @@ export class AgentBrain {
 
     try {
       this.refreshFromStore();
-      const core = useCoreStore.getState();
+      const rid = this.host.roomId;
+      const room = getRoom(rid);
+      const store = useCoreStore.getState();
       const llmConfig = useUiStore.getState().llmConfig;
       if (!llmConfig.apiKey) throw new Error('Claude API key is required');
       const provider = new ClaudeProvider(llmConfig.apiKey);
       const model = this.host.data.model || llmConfig.model;
-      const teamId = useTeamStore.getState().selectedAgentSetId;
-      const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === teamId)
-        || AGENTIC_SETS.find(s => s.id === teamId);
+      // チームは「画面で選ばれているもの」ではなく、自分の部屋のもの。
+      // 画面が別の部屋を見ていても、この脳は自分の部屋の仕事を続ける。
+      const activeTeam = getAgentSet(rid, useTeamStore.getState().customSystems);
 
       const hasVisionSupport = activeTeam?.outputType === 'image' || activeTeam?.outputType === 'video';
 
@@ -57,8 +61,8 @@ export class AgentBrain {
         };
         
         // Attach reference images if VISION is supported for this project type
-        if (hasVisionSupport && core.referenceImages.length > 0) {
-          userMsg.images = core.referenceImages;
+        if (hasVisionSupport && room.referenceImages.length > 0) {
+          userMsg.images = room.referenceImages;
         }
 
         this.history.push(userMsg);
@@ -74,27 +78,27 @@ export class AgentBrain {
       }
 
       // In chat mode, ensure the latest user message also carries images if it's the brief phase
-      if (options.isChat && hasVisionSupport && core.referenceImages.length > 0) {
+      if (options.isChat && hasVisionSupport && room.referenceImages.length > 0) {
         messages = messages.map((m, idx) => {
           if (idx === messages.length - 1 && m.role === 'user') {
-            return { ...m, images: core.referenceImages };
+            return { ...m, images: room.referenceImages };
           }
           return m;
         });
       }
       const allAgents = this.host.simulation.getAllAgents();
-      const systemPrompt = PromptBuilder.buildSystemPrompt(this.host.data, core.phase, core.userBrief, allAgents);
-      const toolDefs = options.tools || ToolRegistry.getDefinitions(this.host.data.index, core.phase, this.host.data.subagents?.length || 0, this.host.data.id);
+      const systemPrompt = PromptBuilder.buildSystemPrompt(this.host.data, room.phase, room.userBrief, allAgents, rid);
+      const toolDefs = options.tools || ToolRegistry.getDefinitions(this.host.data.index, room.phase, this.host.data.subagents?.length || 0, this.host.data.id);
 
       // 3. Log and Execute LLM Call
-      core.addRequestLog({
+      store.addRequestLog({
         agentIndex: this.host.data.index,
         agentName: this.host.data.name,
         systemInstruction: systemPrompt,
         contents: messages,
         systemTools: toolDefs,
         taskId: this.host.getCurrentTaskId() || undefined
-      });
+      }, rid);
 
       const response = await provider.generateCompletion(
         messages,
@@ -104,7 +108,7 @@ export class AgentBrain {
       );
 
       // 4. Log Response
-      core.addResponseLog({
+      store.addResponseLog({
         agentIndex: this.host.data.index,
         agentName: this.host.data.name,
         content: response.content || '',
@@ -112,7 +116,7 @@ export class AgentBrain {
         usage: response.usage,
         raw: response.raw,
         taskId: this.host.getCurrentTaskId() || undefined
-      });
+      }, rid);
 
       // 5. Parse Tool Calls
       const text = response.content || '';
@@ -207,16 +211,15 @@ export class AgentBrain {
   }
 
   private async handleFinalAssetGeneration(prompt: string) {
+    const rid = this.host.roomId;
     const core = useCoreStore.getState();
-    const teamId = useTeamStore.getState().selectedAgentSetId;
-    const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === teamId)
-      || AGENTIC_SETS.find(s => s.id === teamId);
+    const activeTeam = getAgentSet(rid, useTeamStore.getState().customSystems);
 
     if (!activeTeam) return;
 
     // Check if we need manual approval
     if (activeTeam.outputAutoApprove === false) {
-      core.setPendingOutputPrompt(prompt);
+      core.setPendingOutputPrompt(prompt, rid);
 
       // Prepare default params based on output type
       const defaultParams: any = { model: activeTeam.outputModel };
@@ -229,8 +232,8 @@ export class AgentBrain {
         defaultParams.durationSeconds = 4;
       }
 
-      core.setPendingOutputParams(defaultParams);
-      core.setReviewingOutput(true);
+      core.setPendingOutputParams(defaultParams, rid);
+      core.setReviewingOutput(true, rid);
       return;
     }
 
@@ -239,23 +242,22 @@ export class AgentBrain {
   }
 
   public async processFinalAsset(prompt: string, options: any) {
+    const rid = this.host.roomId;
     const core = useCoreStore.getState();
-    const teamId = useTeamStore.getState().selectedAgentSetId;
-    const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === teamId)
-      || AGENTIC_SETS.find(s => s.id === teamId);
+    const activeTeam = getAgentSet(rid, useTeamStore.getState().customSystems);
 
     if (!activeTeam) return;
 
-    core.setIsGeneratingAsset(true);
-    core.setReviewingOutput(false);
+    core.setIsGeneratingAsset(true, rid);
+    core.setReviewingOutput(false, rid);
 
     try {
       if (activeTeam.outputType === 'text') {
         // For text, the prompt is the final output (produced by the Claude "brain")
-        core.setFinalOutput(prompt);
-        core.setPhase('done');
-        core.setFinalOutputOpen(true);
-        core.setIsGeneratingAsset(false);
+        core.setFinalOutput(prompt, rid);
+        core.setPhase('done', rid);
+        core.setFinalOutputOpen(true, rid);
+        core.setIsGeneratingAsset(false, rid);
         return;
       }
 
@@ -268,7 +270,7 @@ export class AgentBrain {
         agentIndex: -1,
         action: `Generating final ${activeTeam.outputType} using ${model}...`,
         taskId: undefined
-      });
+      }, rid);
 
       let assetContent: string = '';
       let usage: any = undefined;
@@ -276,7 +278,7 @@ export class AgentBrain {
       if (activeTeam.outputType === 'image') {
         const result = await provider.generateImage(prompt, model, (msg: string) => {
           console.log(`[System:Image] ${msg}`);
-        }, options, core.referenceImages);
+        }, options, getRoom(rid).referenceImages);
         assetContent = result.data || '';
         usage = result.usage;
       } else if (activeTeam.outputType === 'music') {
@@ -288,7 +290,7 @@ export class AgentBrain {
       } else if (activeTeam.outputType === 'video') {
         const result = await provider.generateVideo(prompt, model, (msg: string) => {
           console.log(`[System:Video] ${msg}`);
-        }, options, core.referenceImages);
+        }, options, getRoom(rid).referenceImages);
         assetContent = result.videoUrl || '';
         usage = result.usage;
       }
@@ -300,22 +302,22 @@ export class AgentBrain {
         usage: usage,
         raw: { model, ...usage },
         taskId: undefined
-      });
+      }, rid);
 
-      core.setFinalOutput(prompt);
-      core.setFinalAsset(activeTeam.outputType === 'music' ? 'audio' : activeTeam.outputType as any, assetContent);
-      core.setPhase('done');
-      core.setFinalOutputOpen(true);
+      core.setFinalOutput(prompt, rid);
+      core.setFinalAsset(activeTeam.outputType === 'music' ? 'audio' : activeTeam.outputType as any, assetContent, rid);
+      core.setPhase('done', rid);
+      core.setFinalOutputOpen(true, rid);
     } catch (error) {
       console.error('[AgentBrain] Final asset generation failed:', error);
-      core.setIsGeneratingAsset(false);
+      core.setIsGeneratingAsset(false, rid);
       const errMsg = error instanceof Error ? error.message : String(error);
       useUiStore.getState().setBYOKOpen(true, errMsg);
       core.addLogEntry({
         agentIndex: 0,
         action: `Error generating final ${activeTeam.outputType}: ${errMsg}`,
         taskId: undefined
-      });
+      }, rid);
     }
   }
 
@@ -326,11 +328,11 @@ export class AgentBrain {
   }
 
   private refreshFromStore() {
-    const history = useCoreStore.getState().agentHistories[this.host.data.index];
+    const history = getRoom(this.host.roomId).agentHistories[this.host.data.index];
     if (history) this.history = [...history];
   }
 
   private syncToStore() {
-    useCoreStore.getState().setAgentHistory(this.host.data.index, this.history);
+    useCoreStore.getState().setAgentHistory(this.host.data.index, this.history, this.host.roomId);
   }
 }

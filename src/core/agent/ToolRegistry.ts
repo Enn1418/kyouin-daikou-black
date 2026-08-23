@@ -17,6 +17,8 @@ export interface ToolCall {
  */
 export interface AgentActionContext {
   data: { index: number; name: string, subagents?: any[], humanInTheLoop?: boolean };
+  /** この担当が属する部屋。タスクや履歴は必ずこの部屋に書く。 */
+  roomId: string;
   setState: (state: 'idle' | 'moving' | 'working' | 'on_hold' | 'talking') => void;
   appendHistory: (message: LLMMessage) => void;
 }

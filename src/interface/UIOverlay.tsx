@@ -5,7 +5,7 @@ import { useUiStore } from '../integration/store/uiStore';
 import InfoModal from './InfoModal';
 
 import { MessageSquareWarning, PartyPopper, Siren, Loader2 } from 'lucide-react';
-import { Task, useCoreStore } from '../integration/store/coreStore';
+import { Task, useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand';
 
@@ -89,11 +89,7 @@ const UIOverlay: React.FC = () => {
     setSelectedNpc,
   } = useUiStore();
   const [isHelpOpen, setHelpOpen] = useState(false);
-  const {
-    tasks,
-    phase,
-    isGeneratingAsset,
-  } = useCoreStore();
+  const { tasks, phase, isGeneratingAsset } = useRoom();
   const system = useActiveTeam();
   const npcAgents = getAllAgents(system);
   const allPossibleAgents = getAllCharacters(system);

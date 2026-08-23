@@ -11,7 +11,8 @@ import { PoiManager } from './world/PoiManager';
 import { WorldManager } from './world/WorldManager';
 
 import { AgentSimulation } from './core/AgentSimulation';
-import { useCoreStore } from '../integration/store/coreStore';
+import { roomManager } from '../core/rooms/RoomManager';
+import { getRoom, useCoreStore } from '../integration/store/coreStore';
 import { getActiveAgentSet, useTeamStore } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { AgentBehavior, ChatMessage } from '../types';
@@ -59,7 +60,9 @@ export class SceneManager {
     this.resizeObserver.observe(container);
 
     const activeSet = getActiveAgentSet();
-    this.simulation = new AgentSimulation(activeSet);
+    // 3D は部屋を「覗く」だけで、シミュレーションの持ち主は roomManager。
+    // 部屋を出ても仕事は止まらない。
+    this.simulation = roomManager.ensure(activeSet.id);
     this.setCoreHandler((idx, text) => this.simulation!.handleUserMessage(idx, text));
     
     this.init();
@@ -69,20 +72,26 @@ export class SceneManager {
   private startWatchingCoreStore() {
     this.unsubs.push(
       useCoreStore.subscribe((state, prevState) => {
-        const agentIndices = Array.from(new Set(state.tasks.flatMap(t => [t.assignedAgentId].filter(id => id !== undefined && id !== 0))));
+        // 3D が描いているのは今入っている部屋だけ。他の部屋のタスクでは動かさない
+        const roomId = getActiveAgentSet().id;
+        const tasks = state.rooms[roomId]?.tasks ?? [];
+        const prevTasks = prevState.rooms[roomId]?.tasks ?? [];
+        if (tasks === prevTasks) return;
+
+        const agentIndices = Array.from(new Set(tasks.map(t => t.assignedAgentId).filter(id => id !== undefined && id !== 0)));
 
         agentIndices.forEach(id => {
-          const myTasks = state.tasks.filter(t => t.assignedAgentId === id);
+          const myTasks = tasks.filter(t => t.assignedAgentId === id);
           const hasChange = myTasks.some(t => {
-            const pt = prevState.tasks.find(old => old.id === t.id);
+            const pt = prevTasks.find(old => old.id === t.id);
             return !pt || pt.status !== t.status;
           });
-          
+
           if (!hasChange) return;
 
           const onHold = myTasks.find(t => t.status === 'on_hold');
           const inProgress = myTasks.find(t => t.status === 'in_progress');
-          const justDone = myTasks.some(t => t.status === 'done' && !prevState.tasks.find(pt => pt.id === t.id && pt.status === 'done'));
+          const justDone = myTasks.some(t => t.status === 'done' && !prevTasks.find(pt => pt.id === t.id && pt.status === 'done'));
 
           if (onHold) {
             this.moveNpcToBoardroom(id);
@@ -175,10 +184,13 @@ export class SceneManager {
 
       // Monitor individual agent status changes for autonomous animations
       if (s.agentStatuses !== prev.agentStatuses && this.controller) {
+        // 鍵は「部屋ID:番号」。3D が描いているのは今の部屋だけなので、他の部屋の変化は無視する
+        const roomPrefix = `${getActiveAgentSet().id}:`;
         Object.keys(s.agentStatuses).forEach(key => {
-          const idx = parseInt(key);
-          const status = s.agentStatuses[idx];
-          const prevStatus = prev.agentStatuses[idx];
+          if (!key.startsWith(roomPrefix)) return;
+          const idx = parseInt(key.slice(roomPrefix.length));
+          const status = s.agentStatuses[key];
+          const prevStatus = prev.agentStatuses[key];
           if (status !== prevStatus) {
              if (status === 'talking') this.setNpcTalking(idx, true);
              else if (prevStatus === 'talking') this.setNpcTalking(idx, false);
@@ -225,9 +237,11 @@ export class SceneManager {
   public async sendMessage(text: string): Promise<void> {
     const { selectedNpcIndex, isThinking } = useUiStore.getState();
     if (selectedNpcIndex === null || isThinking) return;
-    useCoreStore.setState((s) => ({
-      agentHistories: { ...s.agentHistories, [selectedNpcIndex!]: [...(s.agentHistories[selectedNpcIndex!] || []), { role: 'user', content: text }] }
-    }));
+    {
+      const roomId = getActiveAgentSet().id;
+      const history = getRoom(roomId).agentHistories[selectedNpcIndex!] || [];
+      useCoreStore.getState().setAgentHistory(selectedNpcIndex!, [...history, { role: 'user', content: text }], roomId);
+    }
     useUiStore.setState({ isThinking: true, isTyping: false });
     try {
       if (this.coreHandler) await this.coreHandler(selectedNpcIndex!, text);
@@ -239,8 +253,8 @@ export class SceneManager {
   }
 
   private reinitializeSimulation(activeSet: AgenticSystem) {
-    if (this.simulation) this.simulation.dispose();
-    this.simulation = new AgentSimulation(activeSet);
+    // dispose しない。前の部屋のシミュレーションは roomManager の中で動き続ける
+    this.simulation = roomManager.ensure(activeSet.id);
     this.setCoreHandler((idx, text) => this.simulation!.handleUserMessage(idx, text));
     if (this.driverManager) {
       const playerIndex = activeSet.user.index;
@@ -288,7 +302,7 @@ export class SceneManager {
       this.controller.setSpeaking(index, true);
     } else {
       this.controller.setSpeaking(index, false);
-      const task = useCoreStore.getState().tasks.find(t => t.status === 'on_hold' && t.assignedAgentId === index);
+      const task = getRoom(getActiveAgentSet().id).tasks.find(t => t.status === 'on_hold' && t.assignedAgentId === index);
       this.controller.play(index, task ? 'listen' : 'idle');
     }
   }
@@ -298,8 +312,7 @@ export class SceneManager {
     const poi = this.poiManager.getPoi('area-boardroom') || this.poiManager.getPoi('boardroom');
     if (poi) {
       this.controller.walkToPoi(index, poi.id, () => {
-        const core = useCoreStore.getState();
-        const t = core.tasks.find(t => t.status === 'on_hold' && t.assignedAgentId === index);
+        // （到着後の追加処理は無し。部屋の状態は getRoom で読む）
       });
     }
   }

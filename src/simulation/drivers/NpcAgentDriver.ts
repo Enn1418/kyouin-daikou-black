@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { AgentNode, USER_ID } from '../../data/agents';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { getRoom } from '../../integration/store/coreStore';
+import { getActiveAgentSet } from '../../integration/store/teamStore';
 import { IAgentDriver } from '../../types';
 import { CharacterController } from '../CharacterController';
 
@@ -41,7 +42,8 @@ export class NpcAgentDriver implements IAgentDriver {
 
   public update(positions: Float32Array, delta: number): void {
     const currentState = this.controller.getState(this.agentIndex);
-    const systemState = useCoreStore.getState();
+    // 3D の中に居るのは「いま入っている部屋」の面々なので、その部屋の状態を読む
+    const systemState = getRoom(getActiveAgentSet().id);
 
     // If we are currently chatting with this NPC, suspend autonomous behavior
     if (this.isChattingWithMe) {

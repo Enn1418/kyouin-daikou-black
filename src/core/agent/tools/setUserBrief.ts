@@ -1,5 +1,5 @@
 import { AgentActionContext } from '../ToolRegistry';
-import { useCoreStore } from '../../../integration/store/coreStore';
+import { getRoom, useCoreStore } from '../../../integration/store/coreStore';
 
 export function setUserBrief(agent: AgentActionContext, args: { brief: string }): boolean {
   const store = useCoreStore.getState();
@@ -11,10 +11,10 @@ export function setUserBrief(agent: AgentActionContext, args: { brief: string })
     return false;
   }
   
-  if (store.phase !== 'idle') return false;
+  if (getRoom(agent.roomId).phase !== 'idle') return false;
 
-  store.startProject(brief);
-  store.addLogEntry({ agentIndex: agent.data.index, action: 'defined project brief', taskId: undefined });
+  store.startProject(brief, agent.roomId);
+  store.addLogEntry({ agentIndex: agent.data.index, action: 'defined project brief', taskId: undefined }, agent.roomId);
   
   return true;
 }

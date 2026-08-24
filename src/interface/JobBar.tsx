@@ -3,6 +3,7 @@ import { AlertCircle, ChevronDown, ClipboardList, Lock, Plus } from 'lucide-reac
 
 import { missingRequired } from '../core/jobs/requirementSheet';
 import { useJobStore } from '../integration/store/jobStore';
+import ApprovalGateModal from './ApprovalGateModal';
 import JobSheetModal from './JobSheetModal';
 
 /**
@@ -16,10 +17,13 @@ const JobBar: React.FC = () => {
   const { jobs, activeJobId, setActiveJob, createJob } = useJobStore();
   const [open, setOpen] = React.useState(false);
   const [sheetJobId, setSheetJobId] = React.useState<string | null>(null);
+  const [gateJobId, setGateJobId] = React.useState<string | null>(null);
 
   const job = activeJobId ? jobs[activeJobId] : null;
   const list = Object.values(jobs).sort((a, b) => b.updatedAt - a.updatedAt);
   const missing = job ? missingRequired(job.sheet) : [];
+  // CEO が手を動かさないと進まない唯一の状態。バーの外から見えるところに出す
+  const awaiting = job?.status === '承認待ち①' || job?.status === '承認待ち②';
 
   const startNew = () => {
     const id = createJob('新しい案件');
@@ -29,7 +33,16 @@ const JobBar: React.FC = () => {
 
   return (
     <>
-      <div className="relative flex items-center" translate="no">
+      <div className="relative flex items-center gap-2" translate="no">
+        {awaiting && (
+          <button
+            onClick={() => setGateJobId(job!.id)}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-amber-500 text-white text-[11px] font-black cursor-pointer active:scale-95 shadow-sm"
+            title="CEOの承認を待っています"
+          >
+            <AlertCircle size={13} /> 承認をお願いします
+          </button>
+        )}
         <button
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-2 h-9 px-3 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 transition-colors cursor-pointer max-w-[280px]"
@@ -111,6 +124,10 @@ const JobBar: React.FC = () => {
 
       {sheetJobId && (
         <JobSheetModal jobId={sheetJobId} onClose={() => setSheetJobId(null)} />
+      )}
+
+      {gateJobId && (
+        <ApprovalGateModal jobId={gateJobId} onClose={() => setGateJobId(null)} />
       )}
     </>
   );

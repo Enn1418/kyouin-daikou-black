@@ -2,6 +2,7 @@ import { AgentActionContext } from '../ToolRegistry';
 import { getRoom, useCoreStore } from '../../../integration/store/coreStore';
 import { useTeamStore } from '../../../integration/store/teamStore';
 import { getAgentSet } from '../../../data/agents';
+import { workflowEngine } from '../../workflow/WorkflowEngine';
 
 export function deliverProject(agent: AgentActionContext, args: { output: string }): boolean {
   const store = useCoreStore.getState();
@@ -39,6 +40,10 @@ export function deliverProject(agent: AgentActionContext, args: { output: string
     .forEach(t => store.updateTaskStatus(t.id, 'done', agent.roomId));
 
   store.addLogEntry({ agentIndex: agent.data.index, action: 'delivered final project results', taskId: undefined }, agent.roomId);
-  
+
+  // 案件の工程として動いていた場合は、制御層に提出を知らせる。
+  // **ここで完了にはならない。** 制御層が品質管理へ回す（部屋が自分で合格にできない）。
+  workflowEngine.reportStepDelivered(agent.roomId, activeTeam?.teamName ?? agent.roomId);
+
   return true;
 }

@@ -18,6 +18,7 @@ import SimulationView from './interface/SimulationView';
 import { VisualConfigurator } from './interface/VisualConfigurator/VisualConfigurator';
 import { SceneContext } from './simulation/SceneContext';
 import { SceneManager } from './simulation/SceneManager';
+import { workflowEngine } from './core/workflow/WorkflowEngine';
 
 
 const App: React.FC = () => {
@@ -64,9 +65,16 @@ const App: React.FC = () => {
     sceneManager?.setBackgroundColor(getOfficeTheme(officeThemeId).background);
   }, [sceneManager, officeThemeId]);
 
-  // 教材フォルダのブリッジは起動のたびに繋ぎ直す（設定済みなら担任の操作は要らない）
+  // 教材フォルダのブリッジは起動のたびに繋ぎ直す（設定済みなら CEO の操作は要らない）
   useEffect(() => {
     void autoConnectBridge();
+  }, []);
+
+  // ワークフロー制御層。案件の工程を進めるのはこれだけで、
+  // 承認①を通っていない案件には手を出さない（docs/system-redesign.md §3）
+  useEffect(() => {
+    workflowEngine.start();
+    return () => workflowEngine.stop();
   }, []);
 
   useEffect(() => {

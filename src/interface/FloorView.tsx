@@ -10,6 +10,7 @@ import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useTeamStore } from '../integration/store/teamStore';
 import { agentStatusKey, useUiStore } from '../integration/store/uiStore';
 import { USER_COLOR } from '../theme/brand';
+import { SPACE_BACKGROUND, stageFloor } from '../theme/space';
 import AgentFace, { FaceStatus } from './components/AgentFace';
 
 /**
@@ -72,8 +73,8 @@ const Branch: React.FC<{ count: number; color: string }> = ({ count, color }) =>
 /** 段と段のあいだの矢印。仕事がここから次へ流れる、という案内。 */
 const StageArrow: React.FC = () => (
   <div className="flex flex-col items-center py-1" aria-hidden>
-    <span className="w-0.5 h-6 bg-zinc-300 rounded-full" />
-    <span className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[9px] border-t-zinc-300" />
+    <span className="w-0.5 h-6 rounded-full bg-cyan-400/50 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+    <span className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[9px] border-t-cyan-400/60" />
   </div>
 );
 
@@ -215,8 +216,8 @@ const FloorView: React.FC = () => {
         onClick={() => setActiveTeam(room.id)}
         className={`relative w-[310px] shrink-0 rounded-[28px] overflow-hidden cursor-pointer bg-white transition-all
           ${isActive
-            ? 'shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)] ring-[3px] ring-offset-2 ring-offset-[#F2F5F9] -translate-y-0.5'
-            : 'shadow-[0_10px_26px_-18px_rgba(0,0,0,0.45)] hover:-translate-y-0.5 hover:shadow-[0_16px_34px_-18px_rgba(0,0,0,0.4)]'}`}
+            ? 'shadow-[0_20px_50px_-16px_rgba(0,0,0,0.8)] ring-[3px] ring-offset-2 ring-offset-[#0B1224] -translate-y-0.5'
+            : 'shadow-[0_16px_34px_-14px_rgba(0,0,0,0.75)] hover:-translate-y-0.5'}`}
         style={isActive ? ({ ['--tw-ring-color' as any]: room.color }) : undefined}
       >
         {/* 描いた背景。文字が主役なので、薄く敷いた上に白をかぶせる */}
@@ -354,17 +355,17 @@ const FloorView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto bg-gradient-to-b from-[#F7F9FC] to-[#EDF1F7] p-6" translate="no">
+    <div className="flex-1 min-h-0 overflow-auto p-6" style={SPACE_BACKGROUND} translate="no">
       <div className="mx-auto max-w-[1500px]">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-lg font-black text-darkDelegation">職員室フロア</h1>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
+            <h1 className="text-lg font-black text-white">職員室フロア</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">
               上から下へ、仕事が流れる順に並んでいます。部屋をクリックすると今の担当になり、中に入ると3Dの職員室に切り替わります。
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500">
+            <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
               {(['作業中', '承認待ち', '完了', '待機'] as RoomActivity[]).map((a) => (
                 <span key={a} className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${ACTIVITY_LOOK[a].dot}`} />
@@ -378,10 +379,10 @@ const FloorView: React.FC = () => {
                 onClick={drawMissing}
                 disabled={!canDraw}
                 title={canDraw ? `まだ背景の無い ${missingCount} 部屋を描きます（1部屋あたり約10円）` : drawReason}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[10px] font-black transition-colors
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[10px] font-black transition-colors border border-white/10
                   ${canDraw
-                    ? 'bg-white text-zinc-600 hover:text-darkDelegation shadow-sm cursor-pointer'
-                    : 'bg-white/60 text-zinc-300 cursor-not-allowed'}`}
+                    ? 'bg-white/10 text-slate-200 hover:bg-white/20 cursor-pointer'
+                    : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
               >
                 <Sparkles size={12} /> 背景をまとめて描く（{missingCount}部屋）
               </button>
@@ -413,16 +414,13 @@ const FloorView: React.FC = () => {
             <React.Fragment key={stage.id}>
               <StageArrow />
               {/* 段ごとの床。淡く色を敷くと、どこからどこまでが同じ段か遠目でも分かる */}
-              <div
-                className="mx-auto w-fit max-w-full rounded-[36px] border border-white px-6 py-5 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]"
-                style={{ background: `linear-gradient(180deg, ${stage.tint} 0%, ${stage.tint}55 100%)` }}
-              >
+              <div className="mx-auto w-fit max-w-full rounded-[36px] px-6 py-5" style={stageFloor(stage.tint)}>
                 <div className="mb-4 flex items-center gap-2">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white text-darkDelegation text-[11px] font-black shadow-sm">
                     {i + 1}
                   </span>
-                  <span className="text-[13px] font-black text-darkDelegation">{stage.id}</span>
-                  <span className="text-[10px] font-bold text-zinc-500/80">{stage.note}</span>
+                  <span className="text-[13px] font-black text-white">{stage.id}</span>
+                  <span className="text-[10px] font-bold text-slate-400">{stage.note}</span>
                 </div>
                 <div className="flex flex-wrap items-start justify-center gap-4">
                   {roomsInStage.map(renderRoom)}
@@ -455,7 +453,7 @@ const FloorView: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAnnex((v) => !v)}
-              className="flex items-center gap-2 text-[11px] font-black text-zinc-500 hover:text-darkDelegation cursor-pointer"
+              className="flex items-center gap-2 text-[11px] font-black text-slate-400 hover:text-white cursor-pointer"
             >
               {showAnnex ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               別棟（もとから入っているチーム {annex.length}）
@@ -483,7 +481,7 @@ const FloorView: React.FC = () => {
           </div>
         )}
 
-        <p className="mt-8 text-[10px] text-zinc-400 leading-relaxed">
+        <p className="mt-8 text-[10px] text-slate-500 leading-relaxed">
           矢印は仕事の流れの案内です。部屋は同時に動き、別の部屋に入っても前の部屋の仕事は続きます。
           成果物を次の部屋へ渡すのは、担任の判断で行ってください。
         </p>

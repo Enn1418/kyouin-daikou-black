@@ -8,6 +8,7 @@ import { generateAgentPair, loadAgentArt, loadStyleSample, saveStyleSample } fro
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useTeamStore } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
+import { SPACE_BACKGROUND } from '../theme/space';
 import AgentFace from './components/AgentFace';
 
 /**
@@ -137,12 +138,12 @@ const CharacterBook: React.FC = () => {
   }, [opened, bridgeStatus, art]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto bg-gradient-to-b from-[#F7F9FC] to-[#EDF1F7] p-6" translate="no">
+    <div className="flex-1 min-h-0 overflow-auto p-6" style={SPACE_BACKGROUND} translate="no">
       <div className="mx-auto max-w-[1500px]">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-lg font-black text-darkDelegation">担当図鑑</h1>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
+            <h1 className="text-lg font-black text-white">担当図鑑</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">
               {rooms.length}部屋・{everyone.length}人。この仕事は誰に頼めばいいか迷ったときに開いてください。
               名前をクリックすると、その子の詳しい紹介が出ます。
             </p>
@@ -150,7 +151,7 @@ const CharacterBook: React.FC = () => {
 
           <div className="flex items-center gap-2">
             {progress ? (
-              <span className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white text-[11px] font-black text-zinc-600 shadow-sm">
+              <span className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-[11px] font-black text-slate-200">
                 <Loader2 size={13} className="animate-spin" />
                 {progress.done + 1} / {progress.total} 人目を描いています
               </span>
@@ -160,10 +161,10 @@ const CharacterBook: React.FC = () => {
                 onClick={drawSample}
                 disabled={!canDraw || !!busyId}
                 title={canDraw ? '' : reason}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-black transition-colors
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-black transition-all
                   ${canDraw && !busyId
-                    ? 'bg-darkDelegation text-white hover:bg-black cursor-pointer shadow-sm'
-                    : 'bg-white/60 text-zinc-300 cursor-not-allowed'}`}
+                    ? 'bg-cyan-400 text-[#06121F] hover:bg-cyan-300 cursor-pointer shadow-[0_0_24px_-4px_rgba(34,211,238,0.8)]'
+                    : 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'}`}
               >
                 {busyId ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                 まず見本を1枚描く（約{YEN_PER_PERSON}円）
@@ -175,8 +176,8 @@ const CharacterBook: React.FC = () => {
                   onClick={drawSample}
                   disabled={!canDraw || !!busyId}
                   title={canDraw ? '見本を描き直します。以降はこの絵柄に寄ります' : reason}
-                  className={`px-3 py-2 rounded-2xl text-[10px] font-black transition-colors
-                    ${canDraw && !busyId ? 'bg-white text-zinc-600 hover:text-darkDelegation shadow-sm cursor-pointer' : 'bg-white/60 text-zinc-300 cursor-not-allowed'}`}
+                  className={`px-3 py-2 rounded-2xl text-[10px] font-black transition-colors border border-white/10
+                    ${canDraw && !busyId ? 'bg-white/10 text-slate-200 hover:bg-white/20 cursor-pointer' : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
                 >
                   見本を描き直す
                 </button>
@@ -186,10 +187,10 @@ const CharacterBook: React.FC = () => {
                     onClick={drawRest}
                     disabled={!canDraw || !!busyId}
                     title={canDraw ? `見本の絵柄で ${undrawn.length} 人ぶん描きます` : reason}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-black transition-colors
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[11px] font-black transition-all
                       ${canDraw && !busyId
-                        ? 'bg-darkDelegation text-white hover:bg-black cursor-pointer shadow-sm'
-                        : 'bg-white/60 text-zinc-300 cursor-not-allowed'}`}
+                        ? 'bg-cyan-400 text-[#06121F] hover:bg-cyan-300 cursor-pointer shadow-[0_0_24px_-4px_rgba(34,211,238,0.8)]'
+                        : 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'}`}
                   >
                     <Sparkles size={13} />
                     残り{undrawn.length}人を描く（約{undrawn.length * YEN_PER_PERSON}円）
@@ -201,7 +202,7 @@ const CharacterBook: React.FC = () => {
         </div>
 
         {!sample && (
-          <div className="mb-5 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-[11px] font-medium text-amber-800 leading-relaxed">
+          <div className="mb-5 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-[11px] font-medium text-amber-200 leading-relaxed">
             絵はまだ1枚もありません。<strong>先に見本を1枚だけ描いて、絵柄を決めてください。</strong>
             気に入らなければ描き直せます（1回 約{YEN_PER_PERSON}円）。決まったあとで残りをまとめて描くと、全員の絵柄が揃います。
           </div>
@@ -217,9 +218,12 @@ const CharacterBook: React.FC = () => {
           {rooms.map((room) => (
             <section key={room.id}>
               <div className="mb-3 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: room.color }} />
-                <h2 className="text-[13px] font-black text-darkDelegation">{room.teamName}</h2>
-                <span className="text-[10px] font-bold text-zinc-400">{agentsOf(room).length}人</span>
+                <span
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: room.color, boxShadow: `0 0 10px ${room.color}` }}
+                />
+                <h2 className="text-[13px] font-black text-white">{room.teamName}</h2>
+                <span className="text-[10px] font-bold text-slate-400">{agentsOf(room).length}人</span>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -231,7 +235,7 @@ const CharacterBook: React.FC = () => {
                       key={agent.id}
                       type="button"
                       onClick={() => setOpenId(agent.id)}
-                      className="w-[230px] text-left rounded-[24px] bg-white p-4 shadow-[0_10px_26px_-18px_rgba(0,0,0,0.45)] hover:-translate-y-0.5 hover:shadow-[0_16px_34px_-18px_rgba(0,0,0,0.4)] transition-all cursor-pointer"
+                      className="w-[230px] text-left rounded-[24px] bg-white p-4 shadow-[0_16px_34px_-14px_rgba(0,0,0,0.75)] hover:-translate-y-0.5 transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5">
                         <AgentFace
@@ -275,7 +279,7 @@ const CharacterBook: React.FC = () => {
       {/* 開いたところ。全身の絵と紹介文を大きく出す */}
       {opened && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-6 pointer-events-auto">
-          <div onClick={() => setOpenId(null)} className="absolute inset-0 bg-white/60 backdrop-blur-xl" />
+          <div onClick={() => setOpenId(null)} className="absolute inset-0 bg-[#060B18]/70 backdrop-blur-xl" />
           <div className="relative w-full max-w-lg bg-white rounded-[40px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] p-8 border border-zinc-100">
             <button
               onClick={() => setOpenId(null)}

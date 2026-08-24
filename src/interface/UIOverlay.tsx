@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { getAgentSet, getAllAgents, getAllCharacters } from '../data/agents';
+import { loadDrawnFaces } from '../core/office/agentArt';
+import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useUiStore } from '../integration/store/uiStore';
 import InfoModal from './InfoModal';
 
@@ -16,10 +18,12 @@ interface AlertBubbleProps {
   position: { x: number; y: number };
   visible: boolean;
   color?: string;
+  /** 頭からどれだけ上に出すか。似顔絵が出ている担当は、その上に重ねる。 */
+  offsetY?: number;
   onClick?: () => void;
 }
 
-const AlertBubble: React.FC<AlertBubbleProps> = ({ icon, position, visible, color = '#facc15', onClick }) => {
+const AlertBubble: React.FC<AlertBubbleProps> = ({ icon, position, visible, color = '#facc15', offsetY = -10, onClick }) => {
   if (!visible) return null;
 
   return (
@@ -28,7 +32,7 @@ const AlertBubble: React.FC<AlertBubbleProps> = ({ icon, position, visible, colo
       style={{
         left: position.x,
         top: position.y,
-        transform: 'translate(-50%, -100%) translateY(-10px)'
+        transform: `translate(-50%, -100%) translateY(${offsetY}px)`
       }}
       onClick={(e) => {
         if (onClick) {
@@ -97,9 +101,59 @@ const UIOverlay: React.FC = () => {
   const selectedAgent = selectedNpcIndex != null ? allPossibleAgents.find(a => a.index === selectedNpcIndex) as any ?? null : null;
   const hoveredAgent = hoveredNpcIndex != null ? allPossibleAgents.find(a => a.index === hoveredNpcIndex) as any ?? null : null;
 
+  /**
+   * 図鑑で描いた似顔絵を、3Dのキャラの頭上に出す。
+   *
+   * 3Dのモデルは1つを人数分コピーして色だけ変えている（インスタンス描画）ので、
+   * **1人ずつ別の絵をモデルに貼ることはできない。** そこで3Dには手を入れず、
+   * 画面に重ねる側（このファイル）で出す。位置はキャラの頭の座標をそのまま使う。
+   *
+   * 描いていない担当には何も出さない。今までの見え方を勝手に変えないため。
+   */
+  const bridgeStatus = useBridgeStore((s) => s.status);
+  const [portraits, setPortraits] = useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (bridgeStatus !== 'connected') return;
+    let alive = true;
+    loadDrawnFaces(npcAgents.map((a) => a.id)).then((found) => {
+      if (alive) setPortraits(found);
+    });
+    return () => { alive = false; };
+    // 部屋が変われば顔ぶれも変わる。agent の配列は毎回作り直されるので id で見る
+  }, [bridgeStatus, system.id]);
+
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden select-none">
+      {/* 0. 似顔絵。3Dのモデルには貼れないので、頭の位置に重ねて出す */}
+      {npcAgents.map((agent) => {
+        const pos = npcScreenPositions[agent.index];
+        const portrait = portraits[agent.id];
+        if (!pos || !portrait) return null;
+        return (
+          <div
+            key={`face-${agent.index}`}
+            className="absolute z-20 pointer-events-none transition-all duration-75 ease-out"
+            style={{
+              left: pos.x,
+              top: pos.y,
+              transform: 'translate(-50%, -100%) translateY(-8px)'
+            }}
+          >
+            <img
+              src={portrait}
+              alt={agent.name}
+              className="w-9 h-9 rounded-full object-cover"
+              style={{
+                border: `2px solid ${agent.color}`,
+                boxShadow: `0 0 12px ${agent.color}AA, 0 4px 10px rgba(0,0,0,0.4)`
+              }}
+            />
+          </div>
+        );
+      })}
+
       {/* 1. Parallel Alert Bubbles System */}
       {npcAgents.map((agent) => {
         const pos = npcScreenPositions[agent.index];
@@ -148,6 +202,8 @@ const UIOverlay: React.FC = () => {
             position={pos}
             visible={true}
             color={alertColor}
+            // 似顔絵が出ている担当は、その上に重ねる（重なって読めなくなるのを避ける）
+            offsetY={portraits[agent.id] ? -54 : -10}
             onClick={() => setSelectedNpc(agent.index)}
           />
         );

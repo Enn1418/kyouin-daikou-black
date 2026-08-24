@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { assetRelativePath, decodePngDataUrl, encodePngDataUrl } from './assets.mjs';
+import { assetDirectory, assetRelativePath, decodePngDataUrl, encodePngDataUrl } from './assets.mjs';
 
 /** 1×1 の透明 PNG。テストで使う最小の本物。 */
 const TINY_PNG_BASE64 =
@@ -23,6 +23,12 @@ test('種類と id から置き場所が決まる', () => {
 
 test('知らない種類は受け取らない', () => {
   assert.throws(() => assetRelativePath('script', 'x'), /扱えない種類/);
+  assert.throws(() => assetDirectory('script'), /扱えない種類/);
+});
+
+test('種類から置き場所のフォルダが引ける（一覧に使う）', () => {
+  assert.equal(assetDirectory('agent-face'), '90_職員室/顔');
+  assert.equal(assetDirectory('room-bg'), '90_職員室/背景');
 });
 
 test('id で親フォルダへ抜けられない', () => {

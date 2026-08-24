@@ -60,6 +60,30 @@ export async function loadRoomBackground(roomId: string): Promise<string | null>
 }
 
 /**
+ * 指定した部屋のうち、**すでに背景が描いてある部屋の絵だけ**を読む。
+ * 先に一覧を1回取るので、描いていない部屋のぶんの 404 が出ない。
+ */
+export async function loadDrawnBackgrounds(roomIds: string[]): Promise<Record<string, string>> {
+  // 一覧が引けないとき（更新前のブリッジが動いたまま）は、1部屋ずつ読む方に戻す
+  let targets = roomIds;
+  try {
+    const { ids } = await bridge.listAssets('room-bg');
+    const drawn = new Set(ids);
+    targets = roomIds.filter((id) => drawn.has(id));
+  } catch {
+    // 古いブリッジ。404 は出るが、背景は表示できる
+  }
+
+  const pairs = await Promise.all(
+    targets.map(async (id) => [id, await loadRoomBackground(id)] as const)
+  );
+
+  const found: Record<string, string> = {};
+  pairs.forEach(([id, url]) => { if (url) found[id] = url; });
+  return found;
+}
+
+/**
  * 部屋の背景を1枚描いて、教材フォルダに保存する。
  * 保存に失敗しても描いた絵は返す（その場では見えるが、次に開くと消える）。
  */

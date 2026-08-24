@@ -32,10 +32,16 @@ const bad = (message) => Object.assign(new Error(message), { status: 400 });
 
 export const ASSET_KINDS = Object.keys(KINDS);
 
-/** 種類と id から、教材フォルダ内の相対パスを組み立てる。 */
-export function assetRelativePath(kind, id) {
+/** 種類の置き場所（フォルダ）を返す。 */
+export function assetDirectory(kind) {
   const dir = KINDS[kind];
   if (!dir) throw bad(`扱えない種類です: ${kind || '(なし)'}（${ASSET_KINDS.join(' ')} のみ）`);
+  return dir;
+}
+
+/** 種類と id から、教材フォルダ内の相対パスを組み立てる。 */
+export function assetRelativePath(kind, id) {
+  const dir = assetDirectory(kind);
   if (!ID_PATTERN.test(id || '')) throw bad('id は英数字と - _ だけで、64文字までです');
   return `${dir}/${id}.png`;
 }

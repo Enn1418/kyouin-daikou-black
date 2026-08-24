@@ -4,7 +4,7 @@ import { Loader2, Sparkles, X } from 'lucide-react';
 import { AGENTIC_SETS, AgenticSystem, AgentNode } from '../data/agents';
 import { AGENT_PROFILES, MISSING_PROFILE } from '../data/agentProfiles';
 import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
-import { generateAgentPair, loadAgentArt, loadStyleSample, saveStyleSample } from '../core/office/agentArt';
+import { generateAgentPair, loadAgentArt, loadDrawnFaces, loadStyleSample, saveStyleSample } from '../core/office/agentArt';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useTeamStore } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
@@ -60,14 +60,12 @@ const CharacterBook: React.FC = () => {
     if (bridgeStatus !== 'connected') return;
     let alive = true;
     (async () => {
-      const faces = await Promise.all(
-        everyone.map(async ({ agent }) => [agent.id, await loadAgentArt(agent.id, 'face')] as const)
-      );
+      const faces = await loadDrawnFaces(everyone.map(({ agent }) => agent.id));
       const found = await loadStyleSample();
       if (!alive) return;
       setArt((prev) => {
         const next = { ...prev };
-        faces.forEach(([id, face]) => { if (face) next[id] = { ...next[id], face }; });
+        Object.entries(faces).forEach(([id, face]) => { next[id] = { ...next[id], face }; });
         return next;
       });
       setSample(found);

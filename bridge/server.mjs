@@ -19,7 +19,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { assetRelativePath, decodePngDataUrl, encodePngDataUrl } from './assets.mjs';
+import { assetDirectory, assetRelativePath, decodePngDataUrl, encodePngDataUrl } from './assets.mjs';
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
 import { mergeMemoryNote } from './memory.mjs';
@@ -199,6 +199,24 @@ async function writeFile(relative, content, rootName) {
  * 上書き前の .bak は取らない。文書と違って手で書いたものではなく、
  * 気に入らなければ描き直せばよいものなので、二重に置いても場所を食うだけ。
  */
+/**
+ * その種類で「もう描いてあるもの」の id を並べる。
+ *
+ * これが無いと、アプリは41人ぶん1件ずつ問い合わせて、描いていない人数ぶんだけ
+ * 404 を受け取ることになる（画面を開くたびに数十件）。先にここで一覧を取れば、
+ * 実際にある絵だけを読みにいける。
+ */
+async function listAssets(kind) {
+  const dir = assetDirectory(kind);
+  try {
+    const names = await fs.readdir(safeResolve(dir));
+    return { kind, ids: names.filter((n) => n.endsWith('.png')).map((n) => n.slice(0, -4)) };
+  } catch (e) {
+    if (e.code === 'ENOENT') return { kind, ids: [] };   // まだ1枚も描いていないだけ
+    throw e;
+  }
+}
+
 async function readAsset(kind, id) {
   const relative = assetRelativePath(kind, id);
   const buffer = await fs.readFile(safeResolve(relative));
@@ -333,6 +351,9 @@ const server = createServer(async (req, res) => {
       return json(res, 200, await writeFile(p, body.content, url.searchParams.get('root')), headers);
     }
     // 職員室の絵（部屋の背景・担当の似顔絵）
+    if (req.method === 'GET' && url.pathname === '/assets') {
+      return json(res, 200, await listAssets(url.searchParams.get('kind')), headers);
+    }
     if (req.method === 'GET' && url.pathname === '/asset') {
       return json(
         res,

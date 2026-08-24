@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import { Mic, MicOff, Send } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +8,7 @@ import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { useSceneManager } from '../simulation/SceneContext';
+import { useSpeechInput } from '../integration/hooks/useSpeechInput';
 import { Avatar } from './components/Avatar';
 import { AuditModal } from './AuditModal';
 import { FileSearch } from 'lucide-react';
@@ -86,6 +87,13 @@ const ChatPanel: React.FC = () => {
     // simulateTyping(pastedText);
     setInput(pastedText);
   };
+
+  // 音声入力。確定した発話を入力欄に追記する（打っている途中の文は上書きしない）
+  const { isSupported: isMicSupported, isListening, interimText, toggle: toggleMic } = useSpeechInput({
+    onFinalResult: (text) => {
+      setInput((prev) => (prev && !/\s$/.test(prev) ? prev + ' ' : prev) + text);
+    }
+  });
 
   const handleSend = async () => {
     if (!input.trim() || isThinking) return;
@@ -240,6 +248,22 @@ const ChatPanel: React.FC = () => {
               }}
             />
           </div>
+          {isMicSupported && (
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={isThinking}
+              title={isListening ? '音声入力を止める' : '音声入力（マイク）'}
+              className={`h-11 w-11 shrink-0 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${isThinking
+                ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                : isListening
+                  ? 'bg-red-50 text-red-500 animate-pulse'
+                  : 'bg-zinc-100 text-zinc-400 hover:text-darkDelegation'
+                }`}
+            >
+              {isListening ? <MicOff size={16} strokeWidth={2.5} /> : <Mic size={16} strokeWidth={2.5} />}
+            </button>
+          )}
           <button
             onClick={handleSend}
             disabled={!input.trim() || isThinking}
@@ -252,8 +276,8 @@ const ChatPanel: React.FC = () => {
             <Send size={16} strokeWidth={3} />
           </button>
         </div>
-        <p className="text-[8px] text-zinc-400 mt-2 text-center font-medium uppercase tracking-wider">
-          Shift + ↵ for new line
+        <p className="text-[8px] text-zinc-400 mt-2 text-center font-medium tracking-wider truncate">
+          {isListening && interimText ? interimText : <span className="uppercase">Shift + ↵ for new line</span>}
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { BookOpen, FolderOpen, Info, KeyRound, LayoutGrid, Maximize2, Palette, Settings } from 'lucide-react';
+import { BookOpen, FolderOpen, Info, KeyRound, LayoutGrid, Maximize2, Palette, Settings, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import packageJson from '../../package.json';
 import { OFFICE_THEMES, useAppearanceStore } from '../integration/store/appearanceStore';
@@ -110,6 +110,19 @@ const Header: React.FC = () => {
           <span className="text-[10px] font-black uppercase tracking-wider ml-1 hidden sm:inline">
             {viewMode === 'floor' ? '3Dへ' : 'フロア図'}
           </span>
+        </button>
+
+        {/* 担当図鑑。誰に何を頼めるか迷ったときの索引 */}
+        <button
+          onClick={() => setViewMode(viewMode === 'characters' ? 'floor' : 'characters')}
+          className={`flex items-center gap-2 px-3 py-1 rounded-lg transition-all active:scale-95 cursor-pointer h-9 shrink-0 border ml-1
+            ${viewMode === 'characters'
+              ? 'bg-darkDelegation border-transparent text-white shadow-lg shadow-black/10'
+              : 'bg-white border-zinc-200 text-darkDelegation shadow-sm'}`}
+          title={viewMode === 'characters' ? 'フロア図へ戻る' : '担当図鑑（誰が何をするか）'}
+        >
+          <Users size={14} />
+          <span className="text-[10px] font-black tracking-wider ml-1 hidden sm:inline">図鑑</span>
         </button>
 
         <button

@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUp, ChevronDown, ChevronRight, FolderOpen, Loader2, Sp
 
 import { AGENTIC_SETS, AgenticSystem } from '../data/agents';
 import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
+import { loadAgentArt } from '../core/office/agentArt';
 import { generateRoomBackground, loadRoomBackground } from '../core/office/roomArt';
 import { EMPTY_ROOM, RoomState as RoomData, useCoreStore } from '../integration/store/coreStore';
 import { useBridgeStore } from '../integration/store/bridgeStore';
@@ -87,6 +88,7 @@ const FloorView: React.FC = () => {
 
   const [showAnnex, setShowAnnex] = React.useState(false);
   const [backgrounds, setBackgrounds] = React.useState<Record<string, string>>({});
+  const [faces, setFaces] = React.useState<Record<string, string>>({});
   const [drawing, setDrawing] = React.useState<Record<string, boolean>>({});
   const [artError, setArtError] = React.useState<string | null>(null);
 
@@ -125,6 +127,23 @@ const FloorView: React.FC = () => {
       pairs.forEach(([id, url]) => { if (url) found[id] = url; });
       // いま描いたばかりのものを、読み込み結果で上書きしない
       setBackgrounds((prev) => ({ ...found, ...prev }));
+    });
+    return () => { alive = false; };
+  }, [bridgeStatus, main]);
+
+  // 図鑑で描いた似顔絵があれば、机の上の顔もそれに差し替える。
+  // 3Dで見かけたあの子とフロア図の丸が結びつかないと、図鑑を作った意味が薄い
+  React.useEffect(() => {
+    if (bridgeStatus !== 'connected') return;
+    let alive = true;
+    const everyone = main.flatMap((r) => [r.leadAgent, ...(r.leadAgent.subagents ?? [])]);
+    Promise.all(
+      everyone.map(async (a) => [a.id, await loadAgentArt(a.id, 'face')] as const)
+    ).then((pairs) => {
+      if (!alive) return;
+      const found: Record<string, string> = {};
+      pairs.forEach(([id, url]) => { if (url) found[id] = url; });
+      setFaces(found);
     });
     return () => { alive = false; };
   }, [bridgeStatus, main]);
@@ -236,7 +255,7 @@ const FloorView: React.FC = () => {
                 className="flex items-center gap-2 rounded-2xl bg-white/90 border px-3 py-1.5 shadow-sm"
                 style={{ borderColor: `${room.color}66` }}
               >
-                <AgentFace color={lead.color} status={faceOf(lead.index)} size={34} title={lead.name} />
+                <AgentFace color={lead.color} status={faceOf(lead.index)} portrait={faces[lead.id]} size={34} title={lead.name} />
                 <span className="min-w-0">
                   <span className="block text-[11px] font-black text-darkDelegation leading-tight truncate">
                     {lead.name}
@@ -254,7 +273,7 @@ const FloorView: React.FC = () => {
                 const label = AGENT_LABEL[status];
                 return (
                   <div key={sub.id} className="flex-1 min-w-0 flex flex-col items-center gap-1">
-                    <AgentFace color={sub.color} status={status} size={38} title={sub.name} />
+                    <AgentFace color={sub.color} status={status} portrait={faces[sub.id]} size={38} title={sub.name} />
                     <span className="block w-full text-[9.5px] font-bold text-darkDelegation leading-tight text-center break-words">
                       {sub.name}
                     </span>

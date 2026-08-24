@@ -8,6 +8,7 @@ import { autoConnectBridge } from './core/bridge/bridgeClient';
 import { getOfficeTheme, useAppearanceStore } from './integration/store/appearanceStore';
 import { useCoreStore } from './integration/store/coreStore';
 import { ActionLogPanel } from './interface/ActionLogPanel';
+import CharacterBook from './interface/CharacterBook';
 import { FinalOutputModal } from './interface/FinalOutputModal';
 import FloorView from './interface/FloorView';
 import Header from './interface/Header';
@@ -108,6 +109,9 @@ const App: React.FC = () => {
 
             {/* フロア図（全部屋の俯瞰）。既定の画面 */}
             {viewMode === 'floor' && <FloorView />}
+
+            {/* 担当図鑑。誰に何を頼めるかの索引 */}
+            {viewMode === 'characters' && <CharacterBook />}
 
             {/* Simulation Context - Persistently Mounted */}
             <div

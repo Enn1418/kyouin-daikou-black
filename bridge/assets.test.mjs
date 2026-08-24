@@ -17,6 +17,8 @@ const TINY_PNG_BASE64 =
 test('種類と id から置き場所が決まる', () => {
   assert.equal(assetRelativePath('room-bg', 'sn-japanese'), '90_職員室/背景/sn-japanese.png');
   assert.equal(assetRelativePath('agent-face', 'sn-jp-lead'), '90_職員室/顔/sn-jp-lead.png');
+  assert.equal(assetRelativePath('agent-body', 'sn-jp-lead'), '90_職員室/全身/sn-jp-lead.png');
+  assert.equal(assetRelativePath('style-sample', 'default'), '90_職員室/見本/default.png');
 });
 
 test('知らない種類は受け取らない', () => {

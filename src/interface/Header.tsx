@@ -173,7 +173,7 @@ const Header: React.FC = () => {
             )}
           </div>
           <button
-            onClick={() => setBYOKOpen(true)}
+            onClick={() => setBYOKOpen(true, null, 'folder')}
             className={`relative text-zinc-400 hover:text-darkDelegation transition-colors p-1 ${bridgeLook.color}`}
             title={bridgeLook.title}
           >
@@ -183,7 +183,7 @@ const Header: React.FC = () => {
             )}
           </button>
           <button
-            onClick={() => bridgeStatus === 'connected' ? setIsMemoryOpen(true) : setBYOKOpen(true)}
+            onClick={() => bridgeStatus === 'connected' ? setIsMemoryOpen(true) : setBYOKOpen(true, null, 'folder')}
             className={`relative text-zinc-400 hover:text-darkDelegation transition-colors p-1 ${bridgeStatus !== 'connected' ? 'opacity-30' : ''}`}
             title={bridgeStatus === 'connected' ? '記憶（memory.md）を見る・直す' : '記憶: 先に教材フォルダを接続してください'}
           >

@@ -33,7 +33,12 @@ export interface CharacterState {
 
   isBYOKOpen: boolean;
   byokError: string | null;
-  setBYOKOpen: (open: boolean, error?: string | null) => void;
+  /**
+   * 設定画面のどこを見せるか。鍵とフォルダは同じ画面に同居しているので、
+   * どちらのボタンから来たのかを覚えておいて、その場所まで送る。
+   */
+  byokFocus: 'keys' | 'folder';
+  setBYOKOpen: (open: boolean, error?: string | null, focus?: 'keys' | 'folder') => void;
 
   activeAuditTaskId: string | null;
   setActiveAuditTaskId: (taskId: string | null) => void;

@@ -12,7 +12,22 @@ interface BYOKModalProps {
 const STORAGE_KEY = 'byok-config';
 
 const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
-  const { llmConfig, setLlmConfig, byokError } = useUiStore();
+  const { llmConfig, setLlmConfig, byokError, byokFocus } = useUiStore();
+
+  /**
+   * 鍵と教材フォルダは同じ画面に同居している。どちらのボタンから開いても
+   * 同じ見た目が出るので、押し分けた意味が無い（担任の指摘 2026-08-25）。
+   * フォルダのボタンから来たときは、その場所まで送って、しばらく光らせる。
+   */
+  const folderRef = React.useRef<HTMLDivElement>(null);
+  const [highlightFolder, setHighlightFolder] = useState(byokFocus === 'folder');
+
+  React.useEffect(() => {
+    if (byokFocus !== 'folder') return;
+    folderRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const timer = setTimeout(() => setHighlightFolder(false), 2000);
+    return () => clearTimeout(timer);
+  }, [byokFocus]);
 
   const [apiKey, setApiKey] = useState<string>(llmConfig.apiKey || '');
   const [geminiApiKey, setGeminiApiKey] = useState<string>(llmConfig.geminiApiKey || '');
@@ -76,8 +91,10 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
         onClick={onClose}
         className="absolute inset-0 bg-white/60 backdrop-blur-xl"
       />
+      {/* max-h と overflow-y: この画面は鍵2つと教材フォルダで縦に長い。
+          小さめの窓だと下の「接続を確認」や「SAVE」に手が届かなくなるので、中で巻き取る。 */}
       <div
-        className="relative w-full max-w-md bg-white rounded-[40px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] p-8 md:p-10 border border-zinc-100"
+        className="relative w-full max-w-md max-h-[86vh] overflow-y-auto bg-white rounded-[40px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] p-8 md:p-10 border border-zinc-100"
       >
         {/* Close button */}
         <button
@@ -88,13 +105,15 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
         </button>
 
         <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="mb-6">
+          {/* Header。どちらのボタンから来たかで、何の画面なのかを言い分ける */}
+          <div className="mb-6" translate="no">
             <h2 className="text-3xl font-black text-darkDelegation tracking-tight mb-2">
-              API Keys
+              {byokFocus === 'folder' ? '教材フォルダ' : 'API Keys'}
             </h2>
-            <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-[280px]">
-              Your keys are stored locally and never leave your browser.
+            <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-[300px]">
+              {byokFocus === 'folder'
+                ? '鍵の設定と同じ画面です。下の「教材フォルダ」の欄までご案内します。'
+                : 'Your keys are stored locally and never leave your browser.'}
             </p>
           </div>
 
@@ -202,7 +221,13 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
 
           {/* 教材フォルダ（ローカルブリッジ）
               translate="no": ブラウザの自動翻訳が日本語の説明まで訳し直して壊すため。 */}
-          <div className="mb-10" translate="no">
+          <div
+            ref={folderRef}
+            className={`mb-10 rounded-[28px] transition-all duration-500 ${
+              highlightFolder ? 'ring-4 ring-amber-300/70 bg-amber-50/60 -mx-3 px-3 py-4' : ''
+            }`}
+            translate="no"
+          >
             <div className="flex items-center justify-between mb-4 ml-1">
               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300">
                 教材フォルダ（任意）

@@ -6,6 +6,7 @@ import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
 import { deliverProject } from './tools/deliverProject';
 import { assignableRoomList, canSetWorkPlan, setWorkPlan } from './tools/setWorkPlan';
+import { canSubmitQaVerdict, submitQaVerdict } from './tools/submitQaVerdict';
 
 export interface ToolCall {
   name: string;
@@ -71,6 +72,8 @@ export class ToolRegistry {
         return deliverProject(agent, args);
       case 'set_work_plan':
         return setWorkPlan(agent, args);
+      case 'submit_qa_verdict':
+        return submitQaVerdict(agent, args);
       default:
         console.warn(`[ToolRegistry] Unknown tool: ${name}`);
         return false;
@@ -296,6 +299,45 @@ export class ToolRegistry {
                 }
               },
               required: ['steps']
+            }
+          }
+        });
+      }
+
+      // 品質管理の判定は室長だけ。作る側に渡すと、自分の仕事を自分で合格にできてしまう
+      if (canSubmitQaVerdict(agentId)) {
+        tools.push({
+          type: 'function',
+          function: {
+            name: 'submit_qa_verdict',
+            description:
+              '検査した工程の合否を出す。合格なら次へ、不合格なら作った部門へ差し戻される。' +
+              '次にどうするかを決めるのは制御層で、あなたは合否を出すだけ。',
+            parameters: {
+              type: 'object',
+              properties: {
+                stepId: { type: 'string', description: '検査した工程のID（依頼文に書かれている）' },
+                verdict: { type: 'string', enum: ['合格', '不合格'], description: '重大な指摘が1つでもあれば不合格' },
+                reason: {
+                  type: 'string',
+                  description: '不合格ならどこが基準に届かないか。合格でも何を確かめたかを書く'
+                },
+                sendBackTo: { type: 'string', description: '差し戻し先の部門ID。省略すると作った部門' },
+                checks: {
+                  type: 'array',
+                  description: '検査項目ごとの結果',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      item: { type: 'string' },
+                      ok: { type: 'boolean' },
+                      note: { type: 'string' }
+                    },
+                    required: ['item', 'ok']
+                  }
+                }
+              },
+              required: ['stepId', 'verdict', 'reason']
             }
           }
         });

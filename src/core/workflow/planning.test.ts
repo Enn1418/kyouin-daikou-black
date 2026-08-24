@@ -203,3 +203,81 @@ test('全部そろって初めて出せる', () => {
   });
   assert.deepEqual(canDeliver(j), { ok: true, missing: [] });
 });
+
+// ---- 通しの動き（提出→検査→合格／差し戻し）----
+
+/**
+ * 制御層の動きを、純粋関数だけでなぞる小さな模擬。
+ * ストアには触らず、状態遷移の順序だけを確かめる。
+ */
+function runScenario(steps: PlanStep[], qa: (s: PlanStep) => '合格' | '不合格') {
+  const p = plan(steps.map((s) => ({ ...s })));
+  const order: string[] = [];
+  let guard = 0;
+
+  while (guard++ < 60) {
+    const decisions = decideNextActions(p, ctx);
+    const escalated = decisions.find((d) => d.kind === 'escalate');
+    if (escalated) return { order, escalated: escalated.stepId, plan: p };
+    if (decisions.some((d) => d.kind === 'allDone')) return { order, escalated: null, plan: p };
+
+    const starts = decisions.filter((d) => d.kind === 'start');
+    if (starts.length === 0) return { order, escalated: null, plan: p };
+
+    for (const d of starts) {
+      if (d.kind !== 'start') continue;
+      const st = p.steps.find((x) => x.id === d.stepId)!;
+      order.push(st.id);
+      st.status = 'qa'; // 部屋が提出した＝必ず検査へ回る
+
+      const verdict = qa(st);
+      const next = decideAfterQa(st, verdict, undefined, 'テスト');
+      if (next.kind === 'toQa') st.status = 'done';
+      else if (next.kind === 'rework') { st.status = 'rework'; st.reworkCount += 1; }
+      else if (next.kind === 'escalate') { st.status = 'error'; }
+    }
+  }
+  throw new Error('終わらない（無限ループ）');
+}
+
+test('通し: 依存どおりの順に進み、全部合格すれば完了する', () => {
+  const r = runScenario(
+    [
+      step('a', 'r1'),
+      step('b', 'r2', { dependsOn: ['a'] }),
+      step('c', 'r3', { dependsOn: ['a'] })
+    ],
+    () => '合格'
+  );
+  assert.equal(r.order[0], 'a', 'a より先に b や c が動いてはいけない');
+  assert.deepEqual([...r.order].sort(), ['a', 'b', 'c']);
+  assert.equal(r.plan.steps.every((s) => s.status === 'done'), true);
+});
+
+test('通し: 検査を通らずに done になる工程はない', () => {
+  const r = runScenario([step('a', 'r1'), step('b', 'r2')], () => '合格');
+  // 模擬では qa を経由してしか done にしていない。念のため状態を確かめる
+  assert.equal(r.plan.steps.every((s) => s.status === 'done'), true);
+});
+
+test('通し: 不合格が続くと、無限に繰り返さずCEOへ上がる', () => {
+  const r = runScenario([step('a', 'r1')], () => '不合格');
+  assert.equal(r.plan.steps[0].status, 'error');
+  assert.ok(r.plan.steps[0].reworkCount <= MAX_REWORK + 1);
+});
+
+test('通し: 一度差し戻されても、直れば完了する', () => {
+  let n = 0;
+  const r = runScenario([step('a', 'r1')], () => (++n === 1 ? '不合格' : '合格'));
+  assert.equal(r.plan.steps[0].status, 'done');
+  assert.equal(r.plan.steps[0].reworkCount, 1, '差し戻しの回数が残る');
+  assert.deepEqual(r.order, ['a', 'a'], '同じ工程が作り直される');
+});
+
+test('通し: 途中で失敗した工程の後続は、待ち続けずCEOへ上がる', () => {
+  const r = runScenario(
+    [step('a', 'r1'), step('b', 'r2', { dependsOn: ['a'] })],
+    (s) => (s.id === 'a' ? '不合格' : '合格')
+  );
+  assert.ok(r.escalated, '止まったまま放置してはいけない');
+});

@@ -18,10 +18,14 @@ import { useJobStore } from '../../integration/store/jobStore';
 import { roomManager } from '../rooms/RoomManager';
 import { buildSheetSummary, isSheetComplete } from '../jobs/requirementSheet';
 import { canDeliver, decideAfterQa, decideNextActions } from './planning';
+import { QA_CHECK_ITEMS } from '../../data/qaAgents';
 import type { Job, JobStatus, PlanStep } from '../jobs/types';
 
 /** 制作の工程を動かしてよい状態。ここに無い状態では1つも起動しない。 */
 const RUNNING_STATES: JobStatus[] = ['調査', '単元分析', '制作'];
+
+/** 独立監査の部屋。段取りの割り当て先にはならず、制御層だけが呼ぶ。 */
+const QA_ROOM_ID = 'qa-office';
 
 class WorkflowEngineImpl {
   private timer: number | null = null;
@@ -50,6 +54,11 @@ class WorkflowEngineImpl {
     if (!RUNNING_STATES.includes(job.status)) return;
 
     const store = useJobStore.getState();
+
+    // 検査待ちの工程を品質管理室へ回す。制作より先に見るのは、
+    // 検査が詰まると後続がすべて止まるため
+    this.dispatchQa(job);
+
     const decisions = decideNextActions(job.plan, {
       spentUsd: job.spentUsd,
       budgetUsd: job.budgetUsd
@@ -110,6 +119,50 @@ class WorkflowEngineImpl {
     store.addEvent(job.id, 'control', `${step.roomId} に「${step.title}」を発注`);
   }
 
+  /**
+   * 検査待ちの工程を品質管理室へ回す。
+   *
+   * 渡すのは**成果物そのものと、依頼の条件**だけ。作った部門の会話履歴は渡さない。
+   * 品質管理室は別の部屋なので履歴を共有しておらず、
+   * 「作った本人が自分を検査する」構造にならない（docs/system-redesign.md §4.8）。
+   */
+  private dispatchQa(job: Job) {
+    const waiting = job.plan?.steps.filter((s) => s.status === 'qa') ?? [];
+    if (waiting.length === 0) return;
+
+    // 品質管理室が空いていなければ次の tick で拾う（検査を並行させない）
+    if (getRoom(QA_ROOM_ID).phase === 'working') return;
+
+    const step = waiting[0];
+    const key = `qa:${job.id}:${step.id}`;
+    if (this.launched.has(key)) return;
+    this.launched.add(key);
+
+    const produced = getRoom(step.roomId);
+    const artifact = (produced.finalOutput || '').trim();
+
+    const brief = [
+      `【検査してください】${step.title}（担当部門: ${step.roomId}）`,
+      '',
+      `この工程で「終わったと言える条件」: ${step.doneCondition || '（設定されていません）'}`,
+      step.reworkCount > 0
+        ? `※これは${step.reworkCount}回目の差し戻し後の再検査です。前回の指摘: ${step.note ?? ''}`
+        : '',
+      '',
+      '--- 成果物ここから ---',
+      artifact || '（成果物が空です。この場合は不合格にしてください）',
+      '--- 成果物ここまで ---',
+      '',
+      `検査項目: ${QA_CHECK_ITEMS.join('／')}`,
+      '3名に検査を発注し、まとまったら submit_qa_verdict で合否を出してください。',
+      `stepId は「${step.id}」です。`
+    ].join('\n');
+
+    roomManager.ensure(QA_ROOM_ID);
+    useCoreStore.getState().startProject(brief, QA_ROOM_ID);
+    useJobStore.getState().addEvent(job.id, QA_ROOM_ID, `「${step.title}」の検査を開始`);
+  }
+
   /** 部屋に渡す依頼文。完了条件を必ず添える（何をもって終わりかを部屋が知るため）。 */
   private briefFor(job: Job, step: PlanStep): string {
     const lines = [step.brief.trim(), '', `【この工程で出すもの】${step.title}`];
@@ -161,6 +214,9 @@ class WorkflowEngineImpl {
 
     const store = useJobStore.getState();
     store.addQaReport(job.id, { stepId, verdict, checks, reason, sendBackTo });
+
+    // 検査が済んだので、品質管理室をもう一度呼べるようにする
+    this.launched.delete(`qa:${job.id}:${stepId}`);
 
     const decision = decideAfterQa(step, verdict, sendBackTo, reason);
     if (decision.kind === 'toQa') {

@@ -5,6 +5,7 @@ import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
 import { deliverProject } from './tools/deliverProject';
+import { assignableRoomList, canSetWorkPlan, setWorkPlan } from './tools/setWorkPlan';
 
 export interface ToolCall {
   name: string;
@@ -43,7 +44,10 @@ export class ToolRegistry {
    * payload the agent needs to read back (the file tools). AgentBrain sends a
    * returned string on as the tool_result content.
    */
-  public static process(agent: AgentActionContext, toolCall: ToolCall): boolean | Promise<string | boolean> {
+  public static process(
+    agent: AgentActionContext,
+    toolCall: ToolCall
+  ): boolean | string | Promise<string | boolean> {
     const { name, args } = toolCall;
 
     switch (name) {
@@ -65,6 +69,8 @@ export class ToolRegistry {
         return completeTask(agent, args);
       case 'deliver_project':
         return deliverProject(agent, args);
+      case 'set_work_plan':
+        return setWorkPlan(agent, args);
       default:
         console.warn(`[ToolRegistry] Unknown tool: ${name}`);
         return false;
@@ -251,6 +257,50 @@ export class ToolRegistry {
 
     // 2. Working Phase: Common tools for everyone
     if (phase === 'working') {
+      // 段取りの登録は秘書室のタスク設計担当（と秘書長）だけ。
+      // ほかの部門に渡すと、作る側が自分で順序を決めてしまい、統括が意味を失う
+      if (canSetWorkPlan(agentId)) {
+        tools.push({
+          type: 'function',
+          function: {
+            name: 'set_work_plan',
+            description:
+              'この案件の段取りを登録する。検査に通れば単元構成案とシステム設計図が作られ、CEOの承認待ちになる。' +
+              `使える部門: ${assignableRoomList()}`,
+            parameters: {
+              type: 'object',
+              properties: {
+                steps: {
+                  type: 'array',
+                  description: '工程の一覧。依存の無いものは同じ parallelGroup にして同時に動かす。',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string', description: '工程の短いID（s1, s2 …）' },
+                      roomId: { type: 'string', description: '担当する部門のID' },
+                      title: { type: 'string', description: 'この工程で出すもの。依頼票の成果物名と揃える' },
+                      brief: { type: 'string', description: 'その部門への依頼文' },
+                      dependsOn: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: '先に終わっているべき工程のID'
+                      },
+                      parallelGroup: { type: 'integer', description: '同じ番号は同時に動く' },
+                      doneCondition: {
+                        type: 'string',
+                        description: '終わったと言える条件。品質管理の合格基準になるので必ず書く'
+                      }
+                    },
+                    required: ['id', 'roomId', 'title', 'doneCondition']
+                  }
+                }
+              },
+              required: ['steps']
+            }
+          }
+        });
+      }
+
       if (isLead || isManager) {
         tools.push({
           type: 'function',

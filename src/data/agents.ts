@@ -1,6 +1,7 @@
 import { USER_COLOR } from '../theme/brand';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
+import { SECRETARIAT_SETS } from './secretariatAgents';
 import { SPECIAL_NEEDS_SETS } from './teacherAgents';
 
 export const USER_ID = 'user';
@@ -437,7 +438,9 @@ const BASE_SETS: AgenticSystem[] = [
 ];
 
 /** 特別支援学級向けチーム（docs/teacher-edition-design.md）を含めた全チーム。 */
-export const AGENTIC_SETS: AgenticSystem[] = [...BASE_SETS, ...SPECIAL_NEEDS_SETS];
+// 秘書室を先頭に置く。CEO が最初に話しかける部門であり、
+// 一覧でも他部門より上に来るほうが階層と一致する。
+export const AGENTIC_SETS: AgenticSystem[] = [...SECRETARIAT_SETS, ...BASE_SETS, ...SPECIAL_NEEDS_SETS];
 
 export function getAgentSet(id: string, customSystems: AgenticSystem[] = []): AgenticSystem {
   return (

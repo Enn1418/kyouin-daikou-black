@@ -50,7 +50,7 @@ export async function searchFiles(args: { query: string; root?: string; limit?: 
     const { root, hits, scanned, truncated } = await bridge.search(args.query, args.root, args.limit);
     if (!hits.length) {
       return `[${root}] 「${args.query}」は見つかりませんでした（${scanned} ファイルを見ました）。` +
-        '語を変えるか、担任に資料の場所を尋ねてください。';
+        '語を変えるか、CEOに資料の場所を尋ねてください。';
     }
     const lines = hits.map((h) => `${h.path}\n  ${h.snippet}`);
     return `[${root}] 「${args.query}」の検索結果 ${hits.length}件:\n${lines.join('\n')}` +

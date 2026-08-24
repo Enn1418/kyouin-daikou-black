@@ -17,7 +17,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "node --test \"bridge/**/*.test.mjs\""
+    "test": "node --test \"bridge/**/*.test.mjs\" && node --experimental-strip-types --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

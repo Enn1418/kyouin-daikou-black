@@ -1,6 +1,8 @@
 import { AgentNode, getAgentSet } from '../../data/agents';
+import { buildSheetSummary } from '../jobs/requirementSheet';
 import { getBridgeMemory, isBridgeConnected } from '../../integration/store/bridgeStore';
 import { getRoom } from '../../integration/store/coreStore';
+import { getActiveJob } from '../../integration/store/jobStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 
 export class PromptBuilder {
@@ -67,6 +69,8 @@ The generation model expects a SINGLE prompt to produce a SINGLE ${activeTeam?.o
     const specialNeedsRules = isSpecialNeeds
       ? `
 SPECIAL NEEDS RULES (このチームでは以下が最優先):
+S0. 依頼者は **CEO**（この学級の担任）。以下の規約や役割説明に出てくる「担任」は、すべて CEO を指す。
+    CEO は学級を持ち児童の実態を知っている人であり、教育上の判断はこの人が行う。
 S1. 出力はすべて日本語。児童は匿名ID（A児・B児…）で指す。氏名・住所・生年月日等が入力されても成果物には書かず、IDに置き換える。
 S2. 児童の学年・到達度・特性は、担任が与えた記述（教材フォルダの実態ファイル、または担任の発言）に**書かれている文字列だけ**を根拠にする。空欄・未記入の欄は埋めず、「未記入」として扱い、その欄を担任に尋ねる。もっともらしい学年や到達度を自分で決めない。これは最も重大な違反であり、教材が別人のものになる。
 S3. 自立活動の区分名・項目名は、担任が与えた一次資料の記述だけを根拠にする。資料が無ければ「区分・項目は要確認」と書く。記憶から区分名を書かない。
@@ -126,14 +130,22 @@ S8. 教材フォルダは接続されていない。ファイルの読み書き�
       ? `\nこの学級での約束（過去の差し戻しから。毎回これに従う）:\n${memory.slice(-4000)}\n`
       : '';
 
+    // S14: 確定した依頼票。**全部門に同じ文面が入る。**
+    // 部門ごとに違う要約を作らないのは、それが「方針のぶれ」そのものだから
+    // （docs/system-redesign.md §2.3）。確定前（承認前）の案件は載せない。
+    const job = getActiveJob();
+    const sheetBlock = job?.sheetLockedAt
+      ? `\n${buildSheetSummary(job.sheet, job.title)}\n`
+      : '';
+
     const pendingReviews = tasks.filter(t => t.assignedAgentId === agent.index && t.reviewComments);
     const reviewContext = pendingReviews.length > 0
       ? `\nREVISION REQUESTED:\n${pendingReviews.map(t => `- [${t.title}] Feedback: ${t.reviewComments}`).join('\n')}`
       : '';
 
     return `ID: ${agent.name}. Role: ${agent.description}. Phase: ${phase}.
-${brief ? `Brief: ${brief}` : ''}${memoryBlock}${reviewContext}
-Team: User (0), ${team}
+${brief ? `Brief: ${brief}` : ''}${sheetBlock}${memoryBlock}${reviewContext}
+Team: CEO (0), ${team}
 KANBAN:
 ${board}
 RULES:

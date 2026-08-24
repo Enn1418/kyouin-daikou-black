@@ -4,7 +4,7 @@ import { DEFAULT_MODELS } from '../core/llm/constants';
 import { SPECIAL_NEEDS_SETS } from './teacherAgents';
 
 export const USER_ID = 'user';
-export const USER_NAME = 'User';
+export const USER_NAME = 'CEO';
 // 役割を細かく区切って人数を増やしたい（担任の要望）ので、1部屋の上限は10人。
 export const MAX_AGENTS = 10;
 export { USER_COLOR };

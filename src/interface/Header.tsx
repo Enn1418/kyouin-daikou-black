@@ -7,6 +7,7 @@ import { useCoreStore } from '../integration/store/coreStore';
 import { useUiStore } from '../integration/store/uiStore';
 import BYOKModal from './BYOKModal';
 import InfoModal from './InfoModal';
+import JobBar from './JobBar';
 
 const version = packageJson.version;
 
@@ -88,6 +89,11 @@ const Header: React.FC = () => {
 
       {/* Right: Global Controls */}
       <div className="flex items-center gap-3">
+
+        {/* いま作っている案件。どの画面にいても見えるようにする */}
+        <JobBar />
+
+        <div className="w-px h-4 bg-zinc-200" />
 
         {/* フロア図と3Dの切り替え。フロア図が既定 */}
         <button

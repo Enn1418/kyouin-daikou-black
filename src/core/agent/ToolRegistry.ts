@@ -107,7 +107,7 @@ export class ToolRegistry {
       const rootNames = roots.map((r) => r.name);
       const rootHint = refs.length
         ? `フォルダ名を root で選べる（${rootNames.join(' / ')}）。省略すると教材フォルダ。` +
-          `${refs.join('・')} は担任の資料で、読むだけ（書き込みはできない）。`
+          `${refs.join('・')} はCEOの資料で、読むだけ（書き込みはできない）。`
         : '';
 
       tools.push(

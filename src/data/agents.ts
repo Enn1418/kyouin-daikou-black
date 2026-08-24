@@ -1,6 +1,7 @@
 import { USER_COLOR } from '../theme/brand';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
+import type { FloorStage } from './floorStages';
 import { QA_SETS } from './qaAgents';
 import { SECRETARIAT_SETS } from './secretariatAgents';
 import { SPECIAL_NEEDS_SETS } from './teacherAgents';
@@ -34,6 +35,8 @@ export interface AgenticSystem {
   teamName: string;
   teamType: string;
   teamDescription: string;
+  /** フロア図で並ぶ段（受付→設計→制作→仕上げ→点検→発信）。省略時は「制作」に置かれる。 */
+  stage?: FloorStage;
   color: string;
   outputType: OutputType;
   outputModel: string;

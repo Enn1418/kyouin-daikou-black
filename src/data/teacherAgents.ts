@@ -31,6 +31,7 @@ const LAYOUT_RULES =
 export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   {
     id: 'sn-multi-tier',
+    stage: '制作',
     teamName: '特支・同時異教材室',
     teamType: '特別支援',
     teamDescription:
@@ -111,6 +112,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-japanese',
+    stage: '制作',
     teamName: '特支・国語教材室',
     teamType: '特別支援',
     teamDescription:
@@ -183,6 +185,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-math',
+    stage: '制作',
     teamName: '特支・算数教材室',
     teamType: '特別支援',
     teamDescription:
@@ -257,6 +260,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-jiritsu',
+    stage: '制作',
     teamName: '特支・自立活動室',
     teamType: '特別支援',
     teamDescription:
@@ -328,6 +332,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-unit-design',
+    stage: '設計',
     teamName: '特支・単元設計室',
     teamType: '特別支援',
     teamDescription:
@@ -426,6 +431,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-board',
+    stage: '仕上げ',
     teamName: '特支・板書室',
     teamType: '特別支援',
     teamDescription:
@@ -509,6 +515,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-koho',
+    stage: '発信',
     teamName: '特支・広報室',
     teamType: '特別支援',
     teamDescription:
@@ -590,6 +597,7 @@ export const SPECIAL_NEEDS_SETS: AgenticSystem[] = [
   },
   {
     id: 'sn-visual',
+    stage: '仕上げ',
     teamName: '特支・視覚教材室',
     teamType: '特別支援',
     teamDescription:

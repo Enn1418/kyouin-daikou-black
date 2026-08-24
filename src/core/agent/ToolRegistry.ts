@@ -5,7 +5,7 @@ import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
 import { deliverProject } from './tools/deliverProject';
-import { canManageJob, canSetWorkPlan, canSubmitQaVerdict, isOrchestrationLead } from './permissions';
+import { canManageJob, canSetWorkPlan, canSubmitQaVerdict, isOrchestrationLead, isOrchestrationRoom } from './permissions';
 import { createJob, jobToolDefinitions, lockRequirementSheet, updateRequirementSheet } from './tools/jobTools';
 import { assignableRoomList, setWorkPlan } from './tools/setWorkPlan';
 import { submitQaVerdict } from './tools/submitQaVerdict';
@@ -116,7 +116,9 @@ export class ToolRegistry {
     // 0. Teaching-materials folder (only when the local bridge is running).
     //    Reading is allowed in every phase — the lead needs the class profile
     //    while the brief is still being discussed. Writing is working-phase only.
-    if (isBridgeConnected()) {
+    //    秘書室・品質管理室には渡さない。教材フォルダを扱うのは制作部屋の仕事で、
+    //    渡してしまうとブリッジ未接続時の接続エラーがそのままチャットに出てしまう
+    if (isBridgeConnected() && !isOrchestrationRoom(agentId)) {
       // 参照フォルダ（Obsidian の保管庫など）があれば、どこを見られるかを説明に載せる。
       // 名前を知らせないと、エージェントは教材フォルダしか見に行かない。
       const roots = getBridgeRoots();

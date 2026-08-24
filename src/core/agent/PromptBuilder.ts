@@ -1,4 +1,5 @@
 import { AgentNode, getAgentSet } from '../../data/agents';
+import { isOrchestrationRoom } from './permissions';
 import { buildSheetSummary } from '../jobs/requirementSheet';
 import { getBridgeMemory, isBridgeConnected } from '../../integration/store/bridgeStore';
 import { getRoom } from '../../integration/store/coreStore';
@@ -80,7 +81,12 @@ S6. 教材本文には前置き・後書き・自己言及を書かない。プ�
 S7. 不確かな内容は「要確認」と明示する。もっともらしく埋めない。
 S12. 児童の人数は実態記述に書かれているとおりに扱う。**勝手に減らさない**。担任が対象を絞った場合だけその児童に限り、絞っていなければ全員を扱う。教材・計画には対象児童（匿名ID）を明記し、どの児童のためのものか分かるようにする。**単元を設計するときは、この単元に参加する児童を担任に確認してから始める**（学級全員が毎回参加するとは限らない）。
 S13. 評価の根拠は**小学校学習指導要領の当該学年**に置く。担任が特別支援学校（知的障害）の各教科の段階に言及したときにのみ、それを適用したルーブリックを別表として併記する（当該学年のものを置き換えない）。いずれの場合も、条文は記憶から書かず一次資料か mext.go.jp で確かめ、確かめられなければ「該当箇所を確認できません」と書く。${
-          isBridgeConnected()
+          isOrchestrationRoom(agent.id)
+            ? `
+S8. 教材フォルダの読み書きはこの部屋の仕事ではない。学級の実態を読む、教材を保存する、
+    ドリルを作るのは、実際に教材を作る部屋（単元設計室など）の役目。ここでは触らない。
+    児童の実態が要るときは、依頼票の「児童の実態」欄（CEO が書いた内容）をそのまま使う。`
+            : isBridgeConnected()
             ? `
 S8-0. 参照フォルダ（担任のノート等）が使えるなら、単元や題材を決める前に search_files で探す。
      担任が長年ためた記録のほうが、こちらの一般論より優先される。読むだけで、書き込みはできない。

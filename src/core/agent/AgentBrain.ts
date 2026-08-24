@@ -168,6 +168,12 @@ export class AgentBrain {
       // 7. Process Actions (Tools)
       // Every tool_use block sent to Claude must be answered with a matching
       // tool_result in the next message, or the next API call is rejected.
+      //
+      // **tool_result は internal にする。** think() はツール実行後にもう一度
+      // モデルを呼び直さない（同じターン内では完結しない）ので、ここで internal を
+      // 付けないと、ファイル読み書きの生の中身やブリッジのエラー文字列が、
+      // エージェント本人の発言のように見えるままチャットに出てしまう
+      // （2026-08-24、CEO が「ERROR: ブリッジに接続できません…」を秘書長の発言として見た不具合）。
       for (const tc of toolCalls) {
         // File tools resolve to a string (the folder listing, the file body, a
         // save confirmation); the store-mutating tools stay synchronous booleans.
@@ -175,7 +181,8 @@ export class AgentBrain {
         this.history.push({
           role: 'tool',
           name: tc.id,
-          content: typeof handled === 'string' ? handled : handled ? 'OK' : 'Tool call was not handled.'
+          content: typeof handled === 'string' ? handled : handled ? 'OK' : 'Tool call was not handled.',
+          metadata: { internal: true }
         });
         if (tc.name === 'deliver_project' && handled) {
           this.handleFinalAssetGeneration(tc.args.output);

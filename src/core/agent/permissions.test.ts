@@ -9,7 +9,8 @@ import {
   canManageJob,
   canSetWorkPlan,
   canSubmitQaVerdict,
-  isOrchestrationLead
+  isOrchestrationLead,
+  isOrchestrationRoom
 } from './permissions.ts';
 
 /** 作る側の代表。この人たちに統括の権限が漏れていないかを見る。 */
@@ -107,4 +108,35 @@ test('秘書長・品質管理室長は、案件や段取りの権限を持ち�
   // 秘書長は案件と段取りの両方に権限がある。品質管理室長はどちらも持たない（判定だけ）
   assert.equal(canManageJob('sec-chief') || canSetWorkPlan('sec-chief'), true);
   assert.equal(canManageJob('qa-chief') || canSetWorkPlan('qa-chief'), false);
+});
+
+/**
+ * 2026-08-24 に実際に起きた不具合の回帰確認（その2）。
+ *
+ * 秘書室の担当は teamType が '特別支援' なので、教材フォルダに関する規約（S8〜S11）が
+ * そのまま効いていた。「依頼を受けたらまず学級の実態ファイルを読む」という指示に従い、
+ * 秘書長がブリッジ未接続のまま read_file を試み、接続エラーの生の文字列が
+ * チャットにそのまま出て、秘書長の発言のように見えてしまった。
+ *
+ * 秘書室・品質管理室は教材フォルダを扱う仕事ではないので、ここに入る担当には
+ * 教材フォルダのツール（list_files/read_file/search_files/write_file/generate_drill）を
+ * 渡さない（ToolRegistry）し、読む指示も書かない（PromptBuilder）。
+ */
+test('秘書室・品質管理室の全員が、教材フォルダを扱わない部屋として判定される', () => {
+  ['sec-chief', 'sec-intake', 'sec-planner', 'sec-progress', 'sec-integrator'].forEach((id) =>
+    assert.equal(isOrchestrationRoom(id), true, `${id} は秘書室のはず`)
+  );
+  ['qa-chief', 'qa-facts', 'qa-consistency', 'qa-rights'].forEach((id) =>
+    assert.equal(isOrchestrationRoom(id), true, `${id} は品質管理室のはず`)
+  );
+});
+
+test('制作部屋は、教材フォルダを扱う部屋のまま', () => {
+  ['sn-unit-lead', 'sn-board-lead', 'sn-visual-director', 'sn-math-lead', 'sn-tier-a'].forEach((id) =>
+    assert.equal(isOrchestrationRoom(id), false, `${id} は制作部屋なので教材フォルダを扱えないと困る`)
+  );
+});
+
+test('担当IDが無いときは、教材フォルダを扱わない側に倒さない（誤って拒否しすぎない）', () => {
+  assert.equal(isOrchestrationRoom(undefined), false);
 });

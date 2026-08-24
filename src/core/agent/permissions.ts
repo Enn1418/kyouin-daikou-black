@@ -43,3 +43,18 @@ export const canManageJob = (agentId?: string) => has(JOB_MANAGERS, agentId);
 export const canSetWorkPlan = (agentId?: string) => has(PLAN_AUTHORS, agentId);
 export const canSubmitQaVerdict = (agentId?: string) => has(QA_JUDGES, agentId);
 export const isOrchestrationLead = (agentId?: string) => has(ORCHESTRATION_LEADS, agentId);
+
+/**
+ * 秘書室・品質管理室に属する担当か（`sec-`／`qa-` の接頭辞で判定）。
+ *
+ * 教材フォルダの読み書き（学級の実態を読む、教材を保存する、ドリルを作る等）は、
+ * 実際に教材を作る部屋の仕事であって、統括・監査の部屋の仕事ではない。
+ * ここに入る担当には教材フォルダ関連のツールを渡さない（`ToolRegistry`）し、
+ * プロンプトにも読む指示を書かない（`PromptBuilder`）。
+ *
+ * 渡してしまうと、依頼を受けた直後に「まず実態を読む」という指示に機械的に従い、
+ * 教材フォルダに繋がっていない・繋がりが切れているときに、その接続エラーが
+ * そのままチャットに表示されて CEO を混乱させる（2026-08-24 に実際に発生）。
+ */
+export const isOrchestrationRoom = (agentId?: string) =>
+  !!agentId && (agentId.startsWith('sec-') || agentId.startsWith('qa-'));

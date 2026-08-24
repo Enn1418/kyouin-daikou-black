@@ -2,6 +2,7 @@ import { AGENTIC_SETS, getAgentSet } from '../../../data/agents';
 import { useJobStore } from '../../../integration/store/jobStore';
 import { useTeamStore } from '../../../integration/store/teamStore';
 import { renderBlueprintHtml, renderProposalHtml } from '../../jobs/documents';
+import { buildMissingQuestion, missingRequired } from '../../jobs/requirementSheet';
 import type { RoomInfo } from '../../jobs/documents';
 import type { PlanStep } from '../../jobs/types';
 import { normalizePlan, validatePlan } from '../../workflow/validatePlan';
@@ -58,11 +59,19 @@ export function setWorkPlan(agent: AgentActionContext, args: Args): string {
   const { jobs, activeJobId } = useJobStore.getState();
   const job = activeJobId ? jobs[activeJobId] : null;
 
+  // 行き止まりにしない。**CEO に画面操作を求めず、自分で作れることを伝える**
   if (!job) {
-    return '登録できません: いま選ばれている案件がありません。CEO に案件を作ってもらってください。';
+    return '登録できません: まだ案件がありません。\n' +
+      '秘書長が create_job で案件を作り、update_requirement_sheet で条件を埋め、' +
+      'lock_requirement_sheet で確定してから、もう一度呼んでください。' +
+      '（CEO に画面を操作してもらう必要はありません）';
   }
   if (!job.sheetLockedAt) {
-    return '登録できません: 依頼票がまだ確定していません。先に不足項目を CEO に尋ねてください。';
+    const missing = missingRequired(job.sheet);
+    return missing.length > 0
+      ? `登録できません: 依頼票にまだ${missing.length}項目足りません。\n${buildMissingQuestion(job.sheet)}\n` +
+        'CEO の答えを update_requirement_sheet で書き込み、lock_requirement_sheet で確定してください。'
+      : '登録できません: 依頼票が未確定です。内容を CEO に確認し、lock_requirement_sheet で確定してください。';
   }
 
   const rooms = roomInfos();
@@ -115,10 +124,6 @@ export function setWorkPlan(agent: AgentActionContext, args: Args): string {
   );
 }
 
-/** 段取りを作れる担当か。タスク設計担当と、その部門のリードだけ。 */
-export function canSetWorkPlan(agentId?: string): boolean {
-  return agentId === 'sec-planner' || agentId === 'sec-chief';
-}
 
 /** 使える部門のID一覧（プロンプトに載せる用）。 */
 export function assignableRoomList(): string {

@@ -60,7 +60,3 @@ export function submitQaVerdict(agent: AgentActionContext, args: Args): string {
       '直したものは、もう一度ここで検査します。';
 }
 
-/** 判定を出せるのは品質管理室長だけ。 */
-export function canSubmitQaVerdict(agentId?: string): boolean {
-  return agentId === 'qa-chief';
-}

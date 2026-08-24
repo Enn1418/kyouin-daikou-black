@@ -5,8 +5,10 @@ import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
 import { deliverProject } from './tools/deliverProject';
-import { assignableRoomList, canSetWorkPlan, setWorkPlan } from './tools/setWorkPlan';
-import { canSubmitQaVerdict, submitQaVerdict } from './tools/submitQaVerdict';
+import { canManageJob, canSetWorkPlan, canSubmitQaVerdict } from './permissions';
+import { createJob, jobToolDefinitions, lockRequirementSheet, updateRequirementSheet } from './tools/jobTools';
+import { assignableRoomList, setWorkPlan } from './tools/setWorkPlan';
+import { submitQaVerdict } from './tools/submitQaVerdict';
 
 export interface ToolCall {
   name: string;
@@ -70,6 +72,12 @@ export class ToolRegistry {
         return completeTask(agent, args);
       case 'deliver_project':
         return deliverProject(agent, args);
+      case 'create_job':
+        return createJob(agent, args);
+      case 'update_requirement_sheet':
+        return updateRequirementSheet(agent, args);
+      case 'lock_requirement_sheet':
+        return lockRequirementSheet(agent, args);
       case 'set_work_plan':
         return setWorkPlan(agent, args);
       case 'submit_qa_verdict':
@@ -237,6 +245,13 @@ export class ToolRegistry {
           }
         });
       }
+    }
+
+    // 案件と依頼票の道具。**idle でも working でも渡す。**
+    // CEO は最初のひとことで依頼してくるので、案件がまだ無い段階（idle）で
+    // 作れないと、秘書室が「画面から作ってください」と突き返すことになる
+    if (canManageJob(agentId)) {
+      tools.push(...jobToolDefinitions());
     }
 
     // 1. Idle Phase: Only Lead can set the brief

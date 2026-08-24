@@ -119,7 +119,7 @@ export interface SearchHit {
 }
 
 /** 職員室の絵の種類。置き場所はブリッジ側（bridge/assets.mjs）が決める。 */
-export type AssetKind = 'room-bg' | 'agent-face';
+export type AssetKind = 'room-bg' | 'agent-face' | 'agent-body' | 'style-sample';
 
 export const bridge = {
   listFiles: (dir: string, root?: string) =>

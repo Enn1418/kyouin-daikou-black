@@ -133,7 +133,7 @@ interface CoreState {
   // ── 全体（部屋に依らない） ───────────────────────────────────
   availableModels: string[]
   isKanbanOpen: boolean
-  viewMode: 'floor' | 'simulation' | 'design';
+  viewMode: 'floor' | 'simulation' | 'design' | 'characters';
   isLogOpen: boolean
   logFilterAgentIndex: number | null;
   isResizing: boolean;
@@ -180,7 +180,7 @@ interface CoreState {
   setFinalOutputOpen: (open: boolean, roomId?: string) => void;
   setIsResizing: (isResizing: boolean) => void;
   resetProject: (roomId?: string) => void;
-  setViewMode: (mode: 'floor' | 'simulation' | 'design') => void;
+  setViewMode: (mode: 'floor' | 'simulation' | 'design' | 'characters') => void;
 }
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`

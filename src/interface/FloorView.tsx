@@ -3,8 +3,8 @@ import { ArrowRight, ArrowUp, ChevronDown, ChevronRight, FolderOpen, Loader2, Sp
 
 import { AGENTIC_SETS, AgenticSystem } from '../data/agents';
 import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
-import { loadAgentArt } from '../core/office/agentArt';
-import { generateRoomBackground, loadRoomBackground } from '../core/office/roomArt';
+import { loadDrawnFaces } from '../core/office/agentArt';
+import { generateRoomBackground, loadDrawnBackgrounds } from '../core/office/roomArt';
 import { EMPTY_ROOM, RoomState as RoomData, useCoreStore } from '../integration/store/coreStore';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useTeamStore } from '../integration/store/teamStore';
@@ -120,12 +120,8 @@ const FloorView: React.FC = () => {
   React.useEffect(() => {
     if (bridgeStatus !== 'connected') return;
     let alive = true;
-    Promise.all(
-      main.map(async (room) => [room.id, await loadRoomBackground(room.id)] as const)
-    ).then((pairs) => {
+    loadDrawnBackgrounds(main.map((room) => room.id)).then((found) => {
       if (!alive) return;
-      const found: Record<string, string> = {};
-      pairs.forEach(([id, url]) => { if (url) found[id] = url; });
       // いま描いたばかりのものを、読み込み結果で上書きしない
       setBackgrounds((prev) => ({ ...found, ...prev }));
     });
@@ -138,13 +134,8 @@ const FloorView: React.FC = () => {
     if (bridgeStatus !== 'connected') return;
     let alive = true;
     const everyone = main.flatMap((r) => [r.leadAgent, ...(r.leadAgent.subagents ?? [])]);
-    Promise.all(
-      everyone.map(async (a) => [a.id, await loadAgentArt(a.id, 'face')] as const)
-    ).then((pairs) => {
-      if (!alive) return;
-      const found: Record<string, string> = {};
-      pairs.forEach(([id, url]) => { if (url) found[id] = url; });
-      setFaces(found);
+    loadDrawnFaces(everyone.map((a) => a.id)).then((found) => {
+      if (alive) setFaces(found);
     });
     return () => { alive = false; };
   }, [bridgeStatus, main]);

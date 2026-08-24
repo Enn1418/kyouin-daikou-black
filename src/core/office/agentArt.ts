@@ -71,6 +71,35 @@ export const loadAgentArt = (agentId: string, shot: Shot) => readAsset(SHOT_KIND
 export const loadStyleSample = () => readAsset('style-sample', SAMPLE_ID);
 
 /**
+ * 指定した担当のうち、**すでに描いてある人の絵だけ**を読む。
+ *
+ * 1人ずつ読みにいくと、描いていない人数ぶん 404 が返る。41人いて数枚しか描いていない
+ * 段階では、画面を開くたびに数十件の失敗が出て、本物の不具合が埋もれる。
+ * 先に一覧を1回取って、有るものだけ読む。
+ */
+export async function loadDrawnFaces(agentIds: string[]): Promise<Record<string, string>> {
+  // 一覧が引けなければ、1人ずつ読みにいく方に戻す。
+  // 更新前のブリッジが起動したままだとこの口が無く、ここで諦めると
+  // 「描いたはずの絵が急に出なくなる」ように見えてしまう。
+  let targets = agentIds;
+  try {
+    const { ids } = await bridge.listAssets('agent-face');
+    const drawn = new Set(ids);
+    targets = agentIds.filter((id) => drawn.has(id));
+  } catch {
+    // 古いブリッジ。404 は出るが、絵は表示できる
+  }
+
+  const pairs = await Promise.all(
+    targets.map(async (id) => [id, await loadAgentArt(id, 'face')] as const)
+  );
+
+  const found: Record<string, string> = {};
+  pairs.forEach(([id, url]) => { if (url) found[id] = url; });
+  return found;
+}
+
+/**
  * 1枚描いて保存する。
  *
  * `reference` に見本を渡すと、その絵柄に寄せて描かれる。渡さないときは

@@ -146,6 +146,10 @@ export const bridge = {
       body: { content }
     }),
 
+  /** その種類で、もう描いてあるものの id を並べる。先にこれを見てから読みにいく。 */
+  listAssets: (kind: AssetKind) =>
+    request<{ kind: string; ids: string[] }>('GET', '/assets', { query: { kind } }),
+
   /** 生成した絵を読む。まだ描いていなければブリッジが 404 を返す。 */
   readAsset: (kind: AssetKind, id: string) =>
     request<{ path: string; dataUrl: string }>('GET', '/asset', { query: { kind, id } }),

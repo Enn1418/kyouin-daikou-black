@@ -1,4 +1,4 @@
-import { FolderOpen, Info, KeyRound, LayoutGrid, Maximize2, Palette, Settings } from 'lucide-react';
+import { BookOpen, FolderOpen, Info, KeyRound, LayoutGrid, Maximize2, Palette, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import packageJson from '../../package.json';
 import { OFFICE_THEMES, useAppearanceStore } from '../integration/store/appearanceStore';
@@ -8,6 +8,7 @@ import { useUiStore } from '../integration/store/uiStore';
 import BYOKModal from './BYOKModal';
 import InfoModal from './InfoModal';
 import JobBar from './JobBar';
+import MemoryModal from './MemoryModal';
 
 const version = packageJson.version;
 
@@ -16,6 +17,7 @@ const Header: React.FC = () => {
   const { setViewMode, viewMode } = useCoreStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
   const { themeId, setThemeId } = useAppearanceStore();
   const hasKey = !!llmConfig.apiKey;
 
@@ -168,6 +170,13 @@ const Header: React.FC = () => {
             )}
           </button>
           <button
+            onClick={() => bridgeStatus === 'connected' ? setIsMemoryOpen(true) : setBYOKOpen(true)}
+            className={`relative text-zinc-400 hover:text-darkDelegation transition-colors p-1 ${bridgeStatus !== 'connected' ? 'opacity-30' : ''}`}
+            title={bridgeStatus === 'connected' ? '記憶（memory.md）を見る・直す' : '記憶: 先に教材フォルダを接続してください'}
+          >
+            <BookOpen size={16} />
+          </button>
+          <button
             onClick={() => setBYOKOpen(true)}
             className="relative text-zinc-400 hover:text-darkDelegation transition-colors p-1"
             title="API Key (BYOK)"
@@ -186,6 +195,10 @@ const Header: React.FC = () => {
 
       {isBYOKOpen && (
         <BYOKModal key="byok-modal" onClose={() => setBYOKOpen(false)} />
+      )}
+
+      {isMemoryOpen && (
+        <MemoryModal key="memory-modal" onClose={() => setIsMemoryOpen(false)} />
       )}
     </header>
   );

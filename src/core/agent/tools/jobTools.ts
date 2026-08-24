@@ -1,3 +1,4 @@
+import { getRoom, useCoreStore } from '../../../integration/store/coreStore';
 import { useJobStore } from '../../../integration/store/jobStore';
 import { buildMissingQuestion, missingRequired } from '../../jobs/requirementSheet';
 import type { OutputFormat, RequirementSheet } from '../../jobs/types';
@@ -95,6 +96,14 @@ export function createJob(agent: AgentActionContext, args: { title?: string } & 
   const job = useJobStore.getState().jobs[id];
 
   store.addEvent(id, agent.roomId, '会話から案件を作成');
+
+  // 秘書室の部屋を働かせる。**ここが重要:** この部屋の心拍（AgentSimulation の
+  // 定期実行）は phase === 'working' のときしか回らない。set_user_brief を
+  // 呼ばずに idle のまま案件だけ作ると、誰も次の一手を打たず「止まって見える」。
+  // create_job の時点で必ず働かせる（CEO がすでに依頼を伝えてきているため）。
+  if (getRoom(agent.roomId).phase === 'idle') {
+    useCoreStore.getState().startProject(`案件「${job.title}」を受け付けた。`, agent.roomId);
+  }
 
   return `案件「${job.title}」を作りました。\n${statusLine(job.sheet)}`;
 }

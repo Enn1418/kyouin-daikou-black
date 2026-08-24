@@ -282,6 +282,27 @@ TS は `node --experimental-strip-types`。import は拡張子つきで書くこ
 
 **未確認**: 実際のAPIキーで依頼→承認→制作→検査を1本通していない。ここが次の焦点。
 
+## 完了済み（2026-08-24・続）— 秘書室が案件を作れなかった不具合
+
+CEO の実地確認: 秘書室に依頼を伝えても、案件を作る手段がなく行き止まりだった（③）。
+続けて発生した2つ目の不具合: 案件は作れても、会話が「実態確認します」で止まって見えた。
+
+- **1つ目の直し**: `create_job` / `update_requirement_sheet` / `lock_requirement_sheet`
+  （`src/core/agent/tools/jobTools.ts`）。秘書室の窓口（`sec-chief`・`sec-intake`）だけが使える。
+  idle でも working でも渡す（CEO は最初のひとことで依頼するため）。
+  推測で埋めない規約はツールの説明文に書く（モデルが実際に読む場所）
+- **2つ目の直し（本質的な原因）**: 部屋の心拍（`AgentSimulation` の定期実行）は
+  `phase === 'working'` のときしか回らない。`create_job` は部屋を idle のまま案件だけ作っていたので、
+  最初の受け答えのあと誰も次の一手を打たず、会話が止まって見えていた。
+  `create_job` の時点で `startProject()` を呼んで部屋を働かせるよう修正（idle のときだけ。
+  すでに working なら上書きしない）
+- 権限（誰が何をできるか）を `src/core/agent/permissions.ts` に集約し、直接テストできるようにした
+  （以前は各ツールファイルの中にあり、ストア依存のためテストから届かなかった）
+
+**未確認**: 実際のAPIキーでの動作は、担任のPCでの再試行待ち。
+Node単体では coreStore/jobStore がブラウザ依存の import グラフ（拡張子なしの相対import、
+zustand persist の localStorage 等）を持つため、深い統合テストは費用対効果が低いと判断し見送った。
+
 ## 次にやること（未着手・どれを選ぶかは担任＝ユーザーの判断）
 
 1. **出力の質を見る** — 起動と接続は解決済み。次は「かさ（LとdL）」等で1回通し、

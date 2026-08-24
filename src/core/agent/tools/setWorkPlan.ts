@@ -74,6 +74,14 @@ export function setWorkPlan(agent: AgentActionContext, args: Args): string {
       : '登録できません: 依頼票が未確定です。内容を CEO に確認し、lock_requirement_sheet で確定してください。';
   }
 
+  // すでに承認待ち・制作以降に進んだ案件へ、段取りを重ねて登録しない。
+  // 上書きすると、承認済みや進行中の工程が黙って消える。二重呼び出しの安全弁
+  if (job.status !== '受付' && job.status !== '要件確認' && job.status !== '調査' &&
+      job.status !== '単元分析' && job.status !== '構成案作成') {
+    return `登録できません: すでに段取りが登録済みで、状態は「${job.status}」です。` +
+      '作り直す必要があれば、その理由を CEO に確認してください。';
+  }
+
   const rooms = roomInfos();
   const draft = {
     steps: (args.steps ?? []).map(

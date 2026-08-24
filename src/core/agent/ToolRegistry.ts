@@ -5,7 +5,7 @@ import { setUserBrief } from './tools/setUserBrief';
 import { proposeTask } from './tools/proposeTask';
 import { completeTask } from './tools/completeTask';
 import { deliverProject } from './tools/deliverProject';
-import { canManageJob, canSetWorkPlan, canSubmitQaVerdict } from './permissions';
+import { canManageJob, canSetWorkPlan, canSubmitQaVerdict, isOrchestrationLead } from './permissions';
 import { createJob, jobToolDefinitions, lockRequirementSheet, updateRequirementSheet } from './tools/jobTools';
 import { assignableRoomList, setWorkPlan } from './tools/setWorkPlan';
 import { submitQaVerdict } from './tools/submitQaVerdict';
@@ -396,7 +396,11 @@ export class ToolRegistry {
         },
       );
 
-      if (isLead) {
+      // 秘書室・品質管理室は「1つの成果物を届けて終わる」制作部屋ではない。
+      // 本来の完了アクションは set_work_plan／submit_qa_verdict なので、
+      // deliver_project は渡さない（渡すと、部屋の心拍を止める deliver_project を
+      // 誤って呼んでしまう。2026-08-24 に実際に起きた不具合の原因）
+      if (isLead && !isOrchestrationLead(agentId)) {
         tools.push({
           type: 'function',
           function: {

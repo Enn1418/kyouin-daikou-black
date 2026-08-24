@@ -20,8 +20,26 @@ export const PLAN_AUTHORS = ['sec-planner', 'sec-chief'] as const;
 /** 品質管理の合否を出せる担当。 */
 export const QA_JUDGES = ['qa-chief'] as const;
 
+/**
+ * 「最終成果物を1つ届けて終わる」形に当てはまらないリード。
+ *
+ * エンジン側に、部屋の内部タスクが全部終わると自動でリードへ
+ * 「deliver_project を使え」と促す仕組みがある（AgentBrain.concludeProject、
+ * 通常の制作部屋を前提にした固定文面）。秘書室・品質管理室は制作部屋ではなく、
+ * 本来の完了アクションは set_work_plan／submit_qa_verdict であって deliver_project ではない。
+ *
+ * ここに入れておくと、
+ *   ①ツール一覧から deliver_project を外す（誤って呼べないようにする）
+ *   ②concludeProject の文面を、その部屋に合ったものに差し替える
+ * の両方に使われる。**deliver_project を呼ぶと部屋の phase が 'done' になり心拍が止まる**
+ * ので、ここに入れ忘れると「秘書室に話しかけると、そこで進行が止まって見える」不具合が起きる
+ * （2026-08-24 に実際に発生し、これが直接の原因だった）。
+ */
+export const ORCHESTRATION_LEADS = ['sec-chief', 'qa-chief'] as const;
+
 const has = (list: readonly string[], id?: string) => !!id && list.includes(id);
 
 export const canManageJob = (agentId?: string) => has(JOB_MANAGERS, agentId);
 export const canSetWorkPlan = (agentId?: string) => has(PLAN_AUTHORS, agentId);
 export const canSubmitQaVerdict = (agentId?: string) => has(QA_JUDGES, agentId);
+export const isOrchestrationLead = (agentId?: string) => has(ORCHESTRATION_LEADS, agentId);

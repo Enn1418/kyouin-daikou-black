@@ -205,8 +205,35 @@ export class AgentBrain {
     return this.think(`Proceed with task: ${taskId}`, { silent: true });
   }
 
-  /** Autonomous Intent: Finalize and deliver the project results. */
+  /**
+   * Autonomous Intent: 部屋の内部タスクが全部終わったときに呼ばれる。
+   *
+   * 秘書室・品質管理室は「1つの成果物を届けて終わる」制作部屋ではないので、
+   * deliver_project を促す文面をそのまま送らない（ツール自体も渡していないが、
+   * 文面だけ食い違っていると「使えないはずの道具を使え」と言われて混乱するため）。
+   * その部屋の実際の完了アクションを名指しで伝える。
+   */
   public async concludeProject() {
+    const id = this.host.data.id;
+
+    if (id === 'sec-chief') {
+      return this.think(
+        'このタスクは終わりましたが、案件全体はまだ終わっていません。案件の状態を確認してください。' +
+        '依頼票が未確定なら、不足を CEO に尋ねてください。確定していて段取りがまだなら、' +
+        'タスク設計担当に段取りを作らせ、set_work_plan で登録してください。' +
+        'すでに段取りを登録済み（承認待ち）なら、いまは CEO の承認待ちです。何もしなくてよいです。',
+        { silent: true }
+      );
+    }
+
+    if (id === 'qa-chief') {
+      return this.think(
+        '3名の検査結果が揃いました。まとめて submit_qa_verdict で合否を出してください。' +
+        'すでに判定済みなら、次の検査対象が来るまで何もしなくてよいです。',
+        { silent: true }
+      );
+    }
+
     return this.think('All tasks are complete! Use the deliver_project tool to fulfill the final delivery with the project result.', { silent: true });
   }
 

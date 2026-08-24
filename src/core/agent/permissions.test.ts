@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 
 import {
   JOB_MANAGERS,
+  ORCHESTRATION_LEADS,
   PLAN_AUTHORS,
   QA_JUDGES,
   canManageJob,
   canSetWorkPlan,
-  canSubmitQaVerdict
+  canSubmitQaVerdict,
+  isOrchestrationLead
 } from './permissions.ts';
 
 /** 作る側の代表。この人たちに統括の権限が漏れていないかを見る。 */
@@ -77,4 +79,32 @@ test('権限の一覧が空になっていない（消し忘れの検出）', ()
   assert.ok(JOB_MANAGERS.length > 0);
   assert.ok(PLAN_AUTHORS.length > 0);
   assert.ok(QA_JUDGES.length > 0);
+});
+
+/**
+ * 2026-08-24 に実際に起きた不具合の回帰確認。
+ *
+ * 秘書室・品質管理室のリードに deliver_project を渡していたため、部屋の内部タスクが
+ * 全部終わると、エンジンが「deliver_project を使え」と促し、リードがそれに従って
+ * 部屋を完了（phase: 'done'）にしてしまい、心拍が止まって進行が止まって見えた。
+ * set_work_plan（秘書室の本来の完了アクション）が一度も呼ばれなかった。
+ */
+test('秘書長と品質管理室長は、成果物を1つ届けて終わる部屋のリードではない', () => {
+  assert.equal(isOrchestrationLead('sec-chief'), true);
+  assert.equal(isOrchestrationLead('qa-chief'), true);
+});
+
+test('制作部屋のリードは、deliver_project を渡すべき対象のまま', () => {
+  ['sn-unit-lead', 'sn-board-lead', 'sn-visual-director', 'sn-koho-lead'].forEach((id) =>
+    assert.equal(isOrchestrationLead(id), false, `${id} は制作部屋のリードなので deliver_project が要る`)
+  );
+});
+
+test('秘書長・品質管理室長は、案件や段取りの権限を持ちつつ deliver_project 対象ではない', () => {
+  ORCHESTRATION_LEADS.forEach((id) => {
+    assert.equal(isOrchestrationLead(id), true);
+  });
+  // 秘書長は案件と段取りの両方に権限がある。品質管理室長はどちらも持たない（判定だけ）
+  assert.equal(canManageJob('sec-chief') || canSetWorkPlan('sec-chief'), true);
+  assert.equal(canManageJob('qa-chief') || canSetWorkPlan('qa-chief'), false);
 });

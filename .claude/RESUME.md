@@ -299,6 +299,24 @@ CEO の実地確認: 秘書室に依頼を伝えても、案件を作る手段�
 - 権限（誰が何をできるか）を `src/core/agent/permissions.ts` に集約し、直接テストできるようにした
   （以前は各ツールファイルの中にあり、ストア依存のためテストから届かなかった）
 
+**続報（2026-08-24）**: 上記だけでは足りず、CEO の実地確認で「秘書室は進むが、その先（単元設計室）が
+動き出さない」ことが判明。根本原因はエンジン側の隠れた挙動だった。
+
+- `AgentSimulation.checkProjectCompletion()` → `AgentBrain.concludeProject()` が、
+  **部屋の内部タスクが全部終わると、リードに「deliver_project を使え」と固定文面で促す仕組み**
+  （通常の制作部屋を前提にしたもの）
+- 秘書室・品質管理室のリードにも `deliver_project` を渡していたため、リードはその指示に従い、
+  本来呼ぶべき `set_work_plan`／`submit_qa_verdict` ではなく `deliver_project` を呼んでしまい、
+  **その部屋の phase が 'done' になって心拍が止まった**（心拍は working のときしか回らない）。
+  単元設計室への段取り登録が一度も起きなかったのは、これが直接の原因
+- 直し: `permissions.ts` に `ORCHESTRATION_LEADS`（sec-chief・qa-chief）を追加。
+  ①`ToolRegistry` がこの2人には `deliver_project` を渡さない
+  ②`AgentBrain.concludeProject()` が、この2人には部屋に合った文面（段取りの状態を確認する／
+  検査結果をまとめて判定する）を送るよう分岐
+- 併せて `set_work_plan` に、承認待ち①以降の案件へ段取りを重ねて登録できないようにする
+  安全弁を追加（二重呼び出しで承認済み・進行中の工程が黙って消える事故を防ぐ）
+- 回帰テスト: `permissions.test.ts` に4件追加（合計83件）
+
 **未確認**: 実際のAPIキーでの動作は、担任のPCでの再試行待ち。
 Node単体では coreStore/jobStore がブラウザ依存の import グラフ（拡張子なしの相対import、
 zustand persist の localStorage 等）を持つため、深い統合テストは費用対効果が低いと判断し見送った。

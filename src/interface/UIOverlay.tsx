@@ -117,7 +117,8 @@ const UIOverlay: React.FC = () => {
   React.useEffect(() => {
     if (bridgeStatus !== 'connected') return;
     let alive = true;
-    loadDrawnFaces(npcAgents.map((a) => a.id)).then((found) => {
+    // 担任も含める。3Dの中では他の担当と同じように歩いているので、同じ扱いにする
+    loadDrawnFaces(allPossibleAgents.map((a) => a.id)).then((found) => {
       if (alive) setPortraits(found);
     });
     return () => { alive = false; };
@@ -127,8 +128,8 @@ const UIOverlay: React.FC = () => {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden select-none">
-      {/* 0. 似顔絵。3Dのモデルには貼れないので、頭の位置に重ねて出す */}
-      {npcAgents.map((agent) => {
+      {/* 0. 似顔絵。3Dのモデルには貼れないので、頭の位置に重ねて出す（担任も含む） */}
+      {allPossibleAgents.map((agent) => {
         const pos = npcScreenPositions[agent.index];
         const portrait = portraits[agent.id];
         if (!pos || !portrait) return null;

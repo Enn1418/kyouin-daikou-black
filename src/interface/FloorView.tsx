@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, ArrowUp, ChevronDown, ChevronRight, FolderOpen, Loader2, Sparkles, UserCheck } from 'lucide-react';
 
-import { AGENTIC_SETS, AgenticSystem } from '../data/agents';
+import { AGENTIC_SETS, AgenticSystem, USER_ID } from '../data/agents';
 import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
 import { loadDrawnFaces } from '../core/office/agentArt';
 import { generateRoomBackground, loadDrawnBackgrounds } from '../core/office/roomArt';
@@ -133,8 +133,9 @@ const FloorView: React.FC = () => {
   React.useEffect(() => {
     if (bridgeStatus !== 'connected') return;
     let alive = true;
+    // 担任も1人として数える（フロア図の先頭に居るので、そこにも絵を出す）
     const everyone = main.flatMap((r) => [r.leadAgent, ...(r.leadAgent.subagents ?? [])]);
-    loadDrawnFaces(everyone.map((a) => a.id)).then((found) => {
+    loadDrawnFaces([USER_ID, ...everyone.map((a) => a.id)]).then((found) => {
       if (alive) setFaces(found);
     });
     return () => { alive = false; };
@@ -390,7 +391,7 @@ const FloorView: React.FC = () => {
         {/* 起点は担任。ここから仕事が始まる */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 rounded-[24px] bg-white px-5 py-3 shadow-[0_10px_26px_-18px_rgba(0,0,0,0.45)]">
-            <AgentFace color={USER_COLOR} size={38} title="担任" />
+            <AgentFace color={USER_COLOR} portrait={faces[USER_ID]} size={38} title="担任" />
             <span>
               <span className="block text-[12px] font-black text-darkDelegation leading-tight">担任（あなた）</span>
               <span className="block text-[10px] font-bold text-zinc-400 leading-tight">やりたいことを持ちこむ</span>

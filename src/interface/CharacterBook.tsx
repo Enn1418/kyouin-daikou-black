@@ -1,13 +1,14 @@
 import React from 'react';
 import { Loader2, Sparkles, X } from 'lucide-react';
 
-import { AGENTIC_SETS, AgenticSystem, AgentNode } from '../data/agents';
+import { AGENTIC_SETS, AgenticSystem, AgentNode, USER_ID } from '../data/agents';
 import { AGENT_PROFILES, MISSING_PROFILE } from '../data/agentProfiles';
 import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
 import { generateAgentPair, loadAgentArt, loadDrawnFaces, loadStyleSample, saveStyleSample } from '../core/office/agentArt';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useTeamStore } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
+import { USER_COLOR } from '../theme/brand';
 import { SPACE_BACKGROUND } from '../theme/space';
 import AgentFace from './components/AgentFace';
 
@@ -25,6 +26,32 @@ import AgentFace from './components/AgentFace';
 const YEN_PER_PERSON = 20;
 
 interface Art { face?: string; body?: string }
+
+/**
+ * 担任も1人として並べる。
+ *
+ * 職員室で唯一の人間だが、フロア図でも3Dでも他の担当と同じ場所に居る。
+ * 図鑑にだけ居ないと「自分の絵はどこで描くのか」が分からなくなるので、
+ * 部屋を1つ持っている形にして、同じ導線に乗せる。
+ */
+const TEACHER_ROOM = {
+  id: 'teacher',
+  teamName: 'あなた',
+  teamType: '特別支援',
+  teamDescription: '',
+  color: USER_COLOR,
+  outputType: 'text',
+  outputModel: '',
+  user: { index: 0, model: 'Human' },
+  leadAgent: {
+    id: USER_ID,
+    index: 0,
+    name: '担任（あなた）',
+    description: '',
+    color: USER_COLOR,
+    model: 'Human'
+  }
+} as AgenticSystem;
 
 const CharacterBook: React.FC = () => {
   const customSystems = useTeamStore((s) => s.customSystems);
@@ -44,10 +71,15 @@ const CharacterBook: React.FC = () => {
     const all = [...byId.values()].filter((s) => s.teamType === '特別支援');
     // フロア図と同じ順（仕事が流れる順）に並べる。並びが違うと探し直しになる
     const order = new Map(FLOOR_STAGES.map((s, i) => [s.id, i]));
-    return all.sort(
+    const sorted = all.sort(
       (a, b) => (order.get(a.stage ?? DEFAULT_STAGE) ?? 99) - (order.get(b.stage ?? DEFAULT_STAGE) ?? 99)
     );
+    // 仕事は担任から始まるので、先頭に置く
+    return [TEACHER_ROOM, ...sorted];
   }, [customSystems]);
+
+  /** 見出しの人数は部屋の担当だけを数える（担任は職員ではないため）。 */
+  const roomCount = rooms.length - 1;
 
   const agentsOf = (room: AgenticSystem): AgentNode[] => [room.leadAgent, ...(room.leadAgent.subagents ?? [])];
   const everyone = React.useMemo(
@@ -142,8 +174,8 @@ const CharacterBook: React.FC = () => {
           <div>
             <h1 className="text-lg font-black text-white">担当図鑑</h1>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              {rooms.length}部屋・{everyone.length}人。この仕事は誰に頼めばいいか迷ったときに開いてください。
-              名前をクリックすると、その子の詳しい紹介が出ます。
+              担任（あなた）と、{roomCount}部屋・{everyone.length - 1}人。
+              この仕事は誰に頼めばいいか迷ったときに開いてください。名前をクリックすると、その子の詳しい紹介が出ます。
             </p>
           </div>
 
@@ -227,7 +259,8 @@ const CharacterBook: React.FC = () => {
               <div className="flex flex-wrap gap-3">
                 {agentsOf(room).map((agent) => {
                   const profile = AGENT_PROFILES[agent.id] || MISSING_PROFILE;
-                  const isLead = agent.index === 1;
+                  // 担任は index 0、まとめ役は 1、それ以外が担当
+                  const role = agent.index === 0 ? '担任' : agent.index === 1 ? 'まとめ役' : '担当';
                   return (
                     <button
                       key={agent.id}
@@ -247,7 +280,7 @@ const CharacterBook: React.FC = () => {
                             {agent.name}
                           </span>
                           <span className="block text-[9px] font-black text-zinc-400 leading-tight mt-0.5">
-                            {isLead ? 'まとめ役' : '担当'}
+                            {role}
                           </span>
                         </span>
                       </div>

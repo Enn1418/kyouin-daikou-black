@@ -56,7 +56,18 @@ const AgentFace: React.FC<AgentFaceProps> = ({ color, status = 'idle', size = 44
       <circle cx="22" cy="22" r="19" fill={color} opacity="0.2" />
 
       {portrait ? (
-        <image href={portrait} x="3" y="3" width="38" height="38" clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
+        /* 似顔絵は「胸から上」で描かれているので、そのまま丸に収めると頭が小さく、
+           服や持ち物のほうが目立ってしまう。約1.9倍に寄せて、頭が丸の中心に来るようにする。
+           41人とも同じ構図で描かれているので、決め打ちの寄せ方で揃う。 */
+        <image
+          href={portrait}
+          x="-14"
+          y="-1"
+          width="72"
+          height="72"
+          clipPath={`url(#${clipId})`}
+          preserveAspectRatio="xMidYMid slice"
+        />
       ) : (
         <>
           {/* ほっぺ。これがあるだけで、ぐっとやわらかくなる */}

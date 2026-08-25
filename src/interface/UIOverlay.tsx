@@ -4,6 +4,7 @@ import { getAgentSet, getAllAgents, getAllCharacters } from '../data/agents';
 import { loadDrawnFaces } from '../core/office/agentArt';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { useUiStore } from '../integration/store/uiStore';
+import AgentFace from './components/AgentFace';
 import InfoModal from './InfoModal';
 
 import { MessageSquareWarning, PartyPopper, Siren, Loader2 } from 'lucide-react';
@@ -141,15 +142,13 @@ const UIOverlay: React.FC = () => {
               transform: 'translate(-50%, -100%) translateY(-8px)'
             }}
           >
-            <img
-              src={portrait}
-              alt={agent.name}
-              className="w-9 h-9 rounded-full object-cover"
-              style={{
-                border: `2px solid ${agent.color}`,
-                boxShadow: `0 0 12px ${agent.color}AA, 0 4px 10px rgba(0,0,0,0.4)`
-              }}
-            />
+            {/* 図鑑やフロア図と同じ部品を使う。寄せ方と縁の出し方を1か所に揃えるため */}
+            <div
+              className="rounded-full"
+              style={{ filter: `drop-shadow(0 0 8px ${agent.color}AA) drop-shadow(0 3px 6px rgba(0,0,0,0.45))` }}
+            >
+              <AgentFace color={agent.color} portrait={portrait} size={38} title={agent.name} />
+            </div>
           </div>
         );
       })}

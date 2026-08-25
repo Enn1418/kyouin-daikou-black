@@ -5,6 +5,8 @@ import { AGENT_PROFILES, MISSING_PROFILE } from '../../data/agentProfiles';
 
 import { normalizeToPng } from './imageUtils';
 
+import { USER_ID } from '../../data/agents';
+
 import type { AgentNode } from '../../data/agents';
 
 /**
@@ -26,13 +28,30 @@ import type { AgentNode } from '../../data/agents';
 
 export type Shot = 'face' | 'body';
 
-/** 全員に共通の姿。3Dのキャラの形をそのまま言葉にしたもの。 */
+/** 担当に共通の姿。3Dのキャラの形をそのまま言葉にしたもの。 */
 const FORM =
   'やわらかい3DCGのマスコット人形。丸い頭と体がひと続きになった、だるまのようにずんぐりした形。' +
   '手足は短くて丸く、指は描かない。鼻・耳・髪の毛は無い。' +
   '目は小さな白い楕円の中に黒い丸、口は小さな笑み。' +
   'つやのある粘土かソフトビニールのような質感で、やわらかい光が当たっている。' +
   '実在の人物には似せない。';
+
+/**
+ * 担任だけは姿を変える（担任の判断、2026-08-25）。
+ *
+ * 職員室でただ一人の人間なので、40人のマスコットと同じ形だと関係が見えない。
+ * 質感と光は共通にして、**形だけ人型にする**。並べたときに浮かないのはそのため。
+ *
+ * 性別や年齢が読み取れる描き方を避けているのは、これが担任自身を指す絵だから。
+ * 特定の見た目を割り当ててしまうと、本人と違うものを毎日見せることになる。
+ */
+const TEACHER_FORM =
+  'やわらかい3DCGの人形。丸みのある人の姿で、頭・首・肩・胴・腕・脚がはっきり分かれている。' +
+  'マスコットより背が高く、手にはちゃんと指がある。短くさっぱりした髪。' +
+  '目は小さな白い楕円の中に黒い丸、口はおだやかな笑み。' +
+  'つやのある粘土のような質感で、やわらかい光が当たっている。' +
+  '実在の人物には似せない。性別や年齢が読み取れる描き方をしない' +
+  '（ひげ・化粧・体型の強調を描かず、中性的にする）。';
 
 const SHOT_RULES: Record<Shot, string> = {
   face: '正方形の画面に、胸から上を正面から。顔がはっきり分かる大きさにする。',
@@ -46,10 +65,12 @@ const SHOT_KIND: Record<Shot, AssetKind> = { face: 'agent-face', body: 'agent-bo
 /** 見本は1枚しか持たないので id は固定。 */
 const SAMPLE_ID = 'default';
 
+export const isTeacher = (agent: AgentNode) => agent.id === USER_ID;
+
 export function buildAgentPrompt(agent: AgentNode, shot: Shot): string {
   const profile = AGENT_PROFILES[agent.id] || MISSING_PROFILE;
   return [
-    FORM,
+    isTeacher(agent) ? TEACHER_FORM : FORM,
     `体の色は ${agent.color} の一色にする。`,
     `身につけているもの: ${profile.outfit}。服と持ち物だけで個性を出し、体の形は変えない。`,
     SHOT_RULES[shot],
@@ -134,7 +155,9 @@ export async function generateAgentPair(
   geminiApiKey: string,
   reference?: string | null
 ): Promise<{ face: string; body: string }> {
-  const body = await generateAgentArt(agent, 'body', geminiApiKey, reference);
+  // 担任には見本を渡さない。見本はだるま型のマスコットなので、
+  // 参照させると人型の指示に逆らって丸い形に引き戻される
+  const body = await generateAgentArt(agent, 'body', geminiApiKey, isTeacher(agent) ? null : reference);
   const face = await generateAgentArt(agent, 'face', geminiApiKey, body);
   return { face, body };
 }

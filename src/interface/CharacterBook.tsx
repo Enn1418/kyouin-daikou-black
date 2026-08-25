@@ -274,6 +274,7 @@ const CharacterBook: React.FC = () => {
                           color={agent.color}
                           portrait={art[agent.id]?.face}
                           size={agent.index === 0 ? 58 : 46}
+                          portraitIsCloseUp={agent.index === 0}
                           title={agent.name}
                         />
                         <span className="min-w-0">
@@ -333,7 +334,7 @@ const CharacterBook: React.FC = () => {
                   />
                 ) : (
                   <div className="py-10">
-                    <AgentFace color={opened.agent.color} portrait={art[opened.agent.id]?.face} size={92} />
+                    <AgentFace color={opened.agent.color} portrait={art[opened.agent.id]?.face} portraitIsCloseUp={opened.agent.index === 0} size={92} />
                   </div>
                 )}
               </div>

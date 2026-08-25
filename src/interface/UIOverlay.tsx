@@ -148,7 +148,7 @@ const UIOverlay: React.FC = () => {
               className="rounded-full"
               style={{ filter: `drop-shadow(0 0 8px ${agent.color}AA) drop-shadow(0 3px 6px rgba(0,0,0,0.45))` }}
             >
-              <AgentFace color={agent.color} portrait={portrait} size={agent.index === 0 ? 46 : 38} title={agent.name} />
+              <AgentFace color={agent.color} portrait={portrait} portraitIsCloseUp={agent.index === 0} size={agent.index === 0 ? 46 : 38} title={agent.name} />
             </div>
           </div>
         );

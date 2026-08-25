@@ -19,6 +19,15 @@ interface AgentFaceProps {
   size?: number;
   /** 生成した似顔絵（data URL）。あればこちらを丸く切り抜いて出す。 */
   portrait?: string | null;
+  /**
+   * 似顔絵がすでに顔のアップで描かれているとき true。
+   *
+   * 担当41人の絵は「胸から上」なので、丸に収めると頭が小さく、服や持ち物のほうが
+   * 目立ってしまう。だから既定では頭に寄せて切り取る。
+   * ところが担任は2頭身で描かれていて元から顔が画面いっぱいにあり、
+   * 同じだけ寄せると耳とあごが切れる。**構図が違うものに同じ切り取りは使えない。**
+   */
+  portraitIsCloseUp?: boolean;
   title?: string;
 }
 
@@ -30,7 +39,7 @@ const BROWS: Partial<Record<FaceStatus, { left: string; right: string }>> = {
   on_hold: { left: 'M12.5 17.8 L18.6 15.4', right: 'M31.5 17.8 L25.4 15.4' }
 };
 
-const AgentFace: React.FC<AgentFaceProps> = ({ color, status = 'idle', size = 44, portrait, title }) => {
+const AgentFace: React.FC<AgentFaceProps> = ({ color, status = 'idle', size = 44, portrait, portraitIsCloseUp, title }) => {
   const clipId = React.useId();
   const brows = BROWS[status];
 
@@ -61,10 +70,9 @@ const AgentFace: React.FC<AgentFaceProps> = ({ color, status = 'idle', size = 44
            41人とも同じ構図で描かれているので、決め打ちの寄せ方で揃う。 */
         <image
           href={portrait}
-          x="-14"
-          y="-1"
-          width="72"
-          height="72"
+          {...(portraitIsCloseUp
+            ? { x: 3, y: 3, width: 38, height: 38 }      // すでに顔のアップ。そのまま収める
+            : { x: -14, y: -1, width: 72, height: 72 })} // 胸から上。約1.9倍に寄せて頭を中心へ
           clipPath={`url(#${clipId})`}
           preserveAspectRatio="xMidYMid slice"
         />

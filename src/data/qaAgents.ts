@@ -36,6 +36,7 @@ export const QA_CHECK_ITEMS = [
 export const QA_SETS: AgenticSystem[] = [
   {
     id: 'qa-office',
+    stage: '点検',
     teamName: '品質管理室',
     teamType: '特別支援',
     teamDescription:

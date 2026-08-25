@@ -118,6 +118,9 @@ export interface SearchHit {
   snippet: string;
 }
 
+/** 職員室の絵の種類。置き場所はブリッジ側（bridge/assets.mjs）が決める。 */
+export type AssetKind = 'room-bg' | 'agent-face' | 'agent-body' | 'style-sample';
+
 export const bridge = {
   listFiles: (dir: string, root?: string) =>
     request<{ root: string; dir: string; entries: FileEntry[]; truncated: boolean }>('GET', '/files', {
@@ -142,6 +145,17 @@ export const bridge = {
       query: { path },
       body: { content }
     }),
+
+  /** その種類で、もう描いてあるものの id を並べる。先にこれを見てから読みにいく。 */
+  listAssets: (kind: AssetKind) =>
+    request<{ kind: string; ids: string[] }>('GET', '/assets', { query: { kind } }),
+
+  /** 生成した絵を読む。まだ描いていなければブリッジが 404 を返す。 */
+  readAsset: (kind: AssetKind, id: string) =>
+    request<{ path: string; dataUrl: string }>('GET', '/asset', { query: { kind, id } }),
+
+  writeAsset: (kind: AssetKind, id: string, dataUrl: string) =>
+    request<{ path: string; bytes: number }>('PUT', '/asset', { query: { kind, id }, body: { dataUrl } }),
 
   readMemory: () => request<{ path: string; content: string }>('GET', '/memory'),
 

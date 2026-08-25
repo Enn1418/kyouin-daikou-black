@@ -30,8 +30,9 @@ export const useUiStore = create<CharacterState>()(
 
     isBYOKOpen: false,
     byokError: null,
-    setBYOKOpen: (open: boolean, error: string | null = null) =>
-      set({ isBYOKOpen: open, byokError: error }),
+    byokFocus: 'keys',
+    setBYOKOpen: (open: boolean, error: string | null = null, focus: 'keys' | 'folder' = 'keys') =>
+      set({ isBYOKOpen: open, byokError: error, byokFocus: focus }),
 
     activeAuditTaskId: null,
     setActiveAuditTaskId: (taskId: string | null) => set({ activeAuditTaskId: taskId }),

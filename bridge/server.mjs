@@ -19,6 +19,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { assetDirectory, assetRelativePath, decodePngDataUrl, encodePngDataUrl } from './assets.mjs';
 import { generateDrill, drillToMarkdown, drillAnswersToMarkdown } from './drill.mjs';
 import { markdownToHtml } from './markdown.mjs';
 import { mergeMemoryNote } from './memory.mjs';
@@ -30,6 +31,8 @@ import { BASE_CSS, TEMPLATE_CSS, TEMPLATE_NAMES, buildHtml } from './templates.m
 const ALLOWED_EXTENSIONS = new Set(['.md', '.txt', '.csv', '.json', '.html']);
 const MAX_READ_BYTES = 1024 * 1024;      // 1MB
 const MAX_WRITE_BYTES = 1024 * 1024;
+// 絵だけは文書より大きい。1K の PNG を base64 にすると 1MB を超えることがある
+const MAX_ASSET_BYTES = 8 * 1024 * 1024;
 const MAX_ENTRIES = 500;
 const MEMORY_PATH = '99_記憶/memory.md';
 const TEMPLATE_DIR = '03_印刷テンプレート';
@@ -122,12 +125,12 @@ const json = (res, status, body, headers = {}) => {
   res.end(payload);
 };
 
-async function readBody(req) {
+async function readBody(req, maxBytes = MAX_WRITE_BYTES) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_WRITE_BYTES) throw Object.assign(new Error('本文が大きすぎます'), { status: 413 });
+    if (size > maxBytes) throw Object.assign(new Error('本文が大きすぎます'), { status: 413 });
     chunks.push(chunk);
   }
   if (!chunks.length) return {};
@@ -187,6 +190,47 @@ async function writeFile(relative, content, rootName) {
 
   await fs.writeFile(target, content, 'utf8');
   return { path: relative, bytes: Buffer.byteLength(content, 'utf8'), backedUp };
+}
+
+/**
+ * 職員室の絵の読み書き。置き場所と名前は assets.mjs が決めるので、
+ * 担任（アプリ）から渡せるのは種類と id だけになる。
+ *
+ * 上書き前の .bak は取らない。文書と違って手で書いたものではなく、
+ * 気に入らなければ描き直せばよいものなので、二重に置いても場所を食うだけ。
+ */
+/**
+ * その種類で「もう描いてあるもの」の id を並べる。
+ *
+ * これが無いと、アプリは41人ぶん1件ずつ問い合わせて、描いていない人数ぶんだけ
+ * 404 を受け取ることになる（画面を開くたびに数十件）。先にここで一覧を取れば、
+ * 実際にある絵だけを読みにいける。
+ */
+async function listAssets(kind) {
+  const dir = assetDirectory(kind);
+  try {
+    const names = await fs.readdir(safeResolve(dir));
+    return { kind, ids: names.filter((n) => n.endsWith('.png')).map((n) => n.slice(0, -4)) };
+  } catch (e) {
+    if (e.code === 'ENOENT') return { kind, ids: [] };   // まだ1枚も描いていないだけ
+    throw e;
+  }
+}
+
+async function readAsset(kind, id) {
+  const relative = assetRelativePath(kind, id);
+  const buffer = await fs.readFile(safeResolve(relative));
+  return { path: relative, dataUrl: encodePngDataUrl(buffer) };
+}
+
+async function writeAsset(kind, id, dataUrl) {
+  ROOTS.assertWritable(null);                  // 絵は必ず教材フォルダ側に置く
+  const relative = assetRelativePath(kind, id);
+  const buffer = decodePngDataUrl(dataUrl);
+  const target = safeResolve(relative);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, buffer);
+  return { path: relative, bytes: buffer.length };
 }
 
 /** テンプレートは教材フォルダ側のものを優先し、無ければ組み込みを使う。 */
@@ -305,6 +349,27 @@ const server = createServer(async (req, res) => {
       if (typeof body.content !== 'string') throw Object.assign(new Error('content が必要です'), { status: 400 });
       // root を無視して教材フォルダに書くと、頼んだ場所と違うところに保存されて気づけない
       return json(res, 200, await writeFile(p, body.content, url.searchParams.get('root')), headers);
+    }
+    // 職員室の絵（部屋の背景・担当の似顔絵）
+    if (req.method === 'GET' && url.pathname === '/assets') {
+      return json(res, 200, await listAssets(url.searchParams.get('kind')), headers);
+    }
+    if (req.method === 'GET' && url.pathname === '/asset') {
+      return json(
+        res,
+        200,
+        await readAsset(url.searchParams.get('kind'), url.searchParams.get('id')),
+        headers
+      );
+    }
+    if (req.method === 'PUT' && url.pathname === '/asset') {
+      const body = await readBody(req, MAX_ASSET_BYTES);
+      return json(
+        res,
+        200,
+        await writeAsset(url.searchParams.get('kind'), url.searchParams.get('id'), body.dataUrl),
+        headers
+      );
     }
     if (req.method === 'GET' && url.pathname === '/memory') {
       try {

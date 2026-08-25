@@ -28,6 +28,7 @@ const ChatPanel: React.FC = () => {
 
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -53,6 +54,17 @@ const ChatPanel: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatMessages, isThinking, isChatting]);
+
+  // 入力欄の高さ。既定の1〜2行だと打っている指示が読みにくいので、
+  // 常に最低3行ぶんを確保し、それより長ければ書いた分だけ伸ばす（上限あり）
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const MIN = 88;
+    const MAX = 200;
+    el.style.height = `${Math.min(MAX, Math.max(MIN, el.scrollHeight))}px`;
+  }, [input]);
 
   useEffect(() => {
     // Initial scroll when chat opens
@@ -219,6 +231,8 @@ const ChatPanel: React.FC = () => {
         <div className="relative flex items-center gap-2">
           <div className="flex-1 relative">
             <textarea
+              ref={inputRef}
+              rows={3}
               value={input}
               onChange={(e) => {
                 const val = e.target.value;
@@ -241,7 +255,7 @@ const ChatPanel: React.FC = () => {
                 }
               }}
               placeholder="Message (↵ to send)"
-              className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:ring-2 transition-all resize-none pr-12 [scrollbar-width:none]"
+              className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all resize-none pr-12 overflow-y-auto"
               style={{
                 borderColor: input.trim() ? USER_COLOR : undefined,
                 boxShadow: input.trim() ? `0 0 0 2px ${USER_COLOR_LIGHT}` : undefined

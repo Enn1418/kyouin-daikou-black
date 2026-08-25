@@ -8,6 +8,7 @@
  * 要約（buildSheetSummary）は全部門のプロンプト先頭に同じ文面で入る。
  * 部門ごとに違う要約を作らないのは、それが「方針のぶれ」そのものだから。
  */
+import { caseFolderPath } from './folderName.ts';
 import { OUTPUT_FORMAT_LABEL, SHEET_FIELDS } from './types.ts';
 import type { RequirementSheet, SheetField } from './types.ts';
 
@@ -81,6 +82,12 @@ export function buildSheetSummary(sheet: RequirementSheet, jobTitle?: string): s
   if (sheet.ict.length) lines.push(`使えるICT・教材: ${listOrDash(sheet.ict)}`);
   if (sheet.style.trim()) lines.push(`出力スタイル: ${clip(sheet.style, 80)}`);
   if (sheet.constraints.trim()) lines.push(`制約・希望: ${clip(sheet.constraints, 120)}`);
+
+  // 教材フォルダが使えるときの保存先。ここで一度だけ決め、全部門に同じ場所を使わせる。
+  // 部屋ごとにばらばらの場所へ保存すると、教材フォルダがすぐ煩雑になる
+  if (jobTitle) {
+    lines.push(`保存先: ${caseFolderPath(jobTitle)}/ の下（例: .../01_教材/、.../02_板書/、.../03_掲示物/）`);
+  }
 
   lines.push(
     '条件が児童の実態と噛み合わないと判断したときは、**勝手に変えず秘書室に申し出る**。'

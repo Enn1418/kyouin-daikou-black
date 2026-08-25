@@ -104,3 +104,29 @@ test('評価の根拠は既定（当該学年）を書いた雛形として置�
   assert.match(cos, /貼り付けて/);
   assert.doesNotMatch(cos, /第[1-6]学年の目標/);
 });
+
+test('案件フォルダ（04_案件）が置かれ、案件ごとにまとまる仕組みを説明する', async () => {
+  const root = path.join(await tmp(), 'cases');
+  const { created } = await scaffold(root);
+  assert.ok(created.includes('04_案件/'), '04_案件 フォルダが作られていない');
+  assert.ok(created.includes('04_案件/README.md'));
+
+  const readme = await fs.readFile(path.join(root, '04_案件/README.md'), 'utf8');
+  assert.match(readme, /案件ごとのフォルダ/);
+  assert.match(readme, /01_教材/);
+  assert.match(readme, /迷いません/);
+});
+
+test('--init 相当（force）は、既存フォルダにも 04_案件 だけ足りない分を補う', async () => {
+  const root = path.join(await tmp(), 'existing');
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(path.join(root, '担任の既存メモ.md'), '触らないでほしい内容', 'utf8');
+
+  const { created, skipped } = await scaffold(root, { force: true });
+  assert.equal(skipped, false);
+  assert.ok(created.includes('04_案件/'));
+
+  // 既存ファイルはそのまま
+  const existing = await fs.readFile(path.join(root, '担任の既存メモ.md'), 'utf8');
+  assert.equal(existing, '触らないでほしい内容');
+});

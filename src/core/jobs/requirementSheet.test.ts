@@ -88,6 +88,16 @@ test('要約は長い記述を切り詰めても、全体が短いままであ�
   assert.match(s, /…/);
 });
 
+test('要約には保存先が入り、全部門が同じ案件フォルダを使う', () => {
+  const s = buildSheetSummary(full, '算数 かさ（LとdL）');
+  assert.match(s, /保存先: 04_案件\/算数 かさ（LとdL）\//);
+});
+
+test('案件名が無いときは保存先を書かない（単発の依頼はこれまでどおり）', () => {
+  const s = buildSheetSummary(full);
+  assert.doesNotMatch(s, /保存先/);
+});
+
 test('未記入の欄は「（未記入）」と出る（もっともらしく埋めない）', () => {
   const s = buildSheetSummary({ ...EMPTY_SHEET }, '未確定');
   assert.match(s, /教科: （未記入）/);

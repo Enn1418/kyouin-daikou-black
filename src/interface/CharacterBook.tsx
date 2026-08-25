@@ -269,10 +269,11 @@ const CharacterBook: React.FC = () => {
                       className="w-[230px] text-left rounded-[24px] bg-white p-4 shadow-[0_16px_34px_-14px_rgba(0,0,0,0.75)] hover:-translate-y-0.5 transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5">
+                        {/* 担任だけ少し大きく。色では見分けきれないので、大きさも手がかりにする */}
                         <AgentFace
                           color={agent.color}
                           portrait={art[agent.id]?.face}
-                          size={46}
+                          size={agent.index === 0 ? 58 : 46}
                           title={agent.name}
                         />
                         <span className="min-w-0">

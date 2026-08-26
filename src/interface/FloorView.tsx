@@ -415,7 +415,16 @@ const FloorView: React.FC = () => {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row items-stretch gap-6">
+        {/*
+          横に並べる条件を lg(1024px) から md(768px) に下げてある。
+          ノートPCの拡大表示（150〜200%）だと 1920 の画面でも実寸は 960px 程度しかなく、
+          lg では横並びにならない。そして縦に積むと秘書室が担任の上に来てしまい、
+          **直したはずの「1段目に見える」状態に戻る**（担任の指摘、2026-08-26）。
+
+          積むしかない幅のときは、順番を入れ替えて列の下に置く。
+          上に置くと、どうしても「最初に通る部屋」に見えてしまうため。
+        */}
+        <div className="flex flex-col md:flex-row items-stretch gap-6">
 
           {/*
             秘書室は流れの外に立つ。
@@ -423,11 +432,11 @@ const FloorView: React.FC = () => {
             **全部の段にまたがって働く**ので、1段目ではなく列の横に置く。
           */}
           {hubRooms.length > 0 && (
-            <aside className="shrink-0 lg:w-[346px] lg:sticky lg:top-2 lg:self-start">
+            <aside className="order-last md:order-first shrink-0 md:w-[346px] md:sticky md:top-2 md:self-start">
               {/* 右端の破線が「全部の段にかかっている」ことを示す。
                   背景の回路線と紛れないよう、白く太く引く */}
               <div
-                className="relative rounded-[36px] px-4 py-5 lg:border-r-[4px] lg:border-dashed lg:border-white/55"
+                className="relative rounded-[36px] px-4 py-5 md:border-r-[4px] md:border-dashed md:border-white/55"
                 style={{ ...stageFloor('#FDE9D9'), filter: 'drop-shadow(0 0 12px rgba(34,211,238,0.35))' }}
               >
                 <div className="mb-3 flex items-center gap-2 px-1">

@@ -18,7 +18,7 @@ const SUB_MODEL = 'claude-haiku-4-5';
 export const SECRETARIAT_SETS: AgenticSystem[] = [
   {
     id: 'sec-office',
-    stage: '受付',
+    stage: '統括',
     teamName: '秘書室',
     teamType: '特別支援',
     teamDescription:

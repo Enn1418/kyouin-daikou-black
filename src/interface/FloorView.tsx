@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, ArrowUp, ChevronDown, ChevronRight, FolderOpen, Loader2, Sparkles, UserCheck } from 'lucide-react';
 
 import { AGENTIC_SETS, AgenticSystem, USER_ID } from '../data/agents';
-import { DEFAULT_STAGE, FLOOR_STAGES } from '../data/floorStages';
+import { DEFAULT_STAGE, FLOOR_STAGES, HUB_STAGE } from '../data/floorStages';
 import { loadDrawnFaces } from '../core/office/agentArt';
 import { generateRoomBackground, loadDrawnBackgrounds } from '../core/office/roomArt';
 import { EMPTY_ROOM, RoomState as RoomData, useCoreStore } from '../integration/store/coreStore';
@@ -105,15 +105,22 @@ const FloorView: React.FC = () => {
     };
   }, [customSystems]);
 
-  /** 段ごとに部屋を仕分ける。段が書かれていない部屋も消えないよう既定の段に入れる。 */
-  const byStage = React.useMemo(() => {
+  /**
+   * 段ごとに部屋を仕分ける。段が書かれていない部屋も消えないよう既定の段に入れる。
+   *
+   * 「統括」の部屋（秘書室）は縦の列から外す。1段目に置くと通り過ぎる受付に見えるが、
+   * 実際は全部の段にまたがって働くため（下の説明を参照）。
+   */
+  const { byStage, hubRooms } = React.useMemo(() => {
     const map = new Map<string, AgenticSystem[]>();
     FLOOR_STAGES.forEach((s) => map.set(s.id, []));
+    const hub: AgenticSystem[] = [];
     main.forEach((room) => {
+      if (room.stage === HUB_STAGE) { hub.push(room); return; }
       const stage = room.stage && map.has(room.stage) ? room.stage : DEFAULT_STAGE;
       map.get(stage)!.push(room);
     });
-    return map;
+    return { byStage: map, hubRooms: hub };
   }, [main]);
 
   // 描いてある背景を読み込む。教材フォルダに繋がっていないときは何もしない
@@ -388,6 +395,45 @@ const FloorView: React.FC = () => {
           </div>
         )}
 
+        <div className="flex flex-col lg:flex-row items-stretch gap-6">
+
+          {/*
+            秘書室は流れの外に立つ。
+            案件を立て、工程表をつくり、進み具合を見て、最後にまとめる——
+            **全部の段にまたがって働く**ので、1段目ではなく列の横に置く。
+          */}
+          {hubRooms.length > 0 && (
+            <aside className="shrink-0 lg:w-[346px] lg:sticky lg:top-2 lg:self-start">
+              <div className="rounded-[36px] px-4 py-5 lg:border-r-2 lg:border-dashed lg:border-cyan-400/30"
+                   style={stageFloor('#FDE9D9')}>
+                <div className="mb-3 flex items-center gap-2 px-1">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white text-darkDelegation text-[11px] font-black shadow-sm">
+                    統
+                  </span>
+                  <span className="text-[13px] font-black text-white">統括</span>
+                  <span className="text-[10px] font-bold text-slate-400">全部の段を回す</span>
+                </div>
+
+                {hubRooms.map(renderRoom)}
+
+                <ol className="mt-4 space-y-1.5 px-1 text-[10px] leading-relaxed text-slate-300">
+                  <li>① 案件を立てる（仕事はここから始まる）</li>
+                  <li>② 工程表をつくり、下の各部屋に発注する</li>
+                  <li>③ 進み具合と、部屋どうしの食い違いを見る</li>
+                  <li>④ できたものを1つにまとめる</li>
+                </ol>
+
+                <p className="mt-3 px-1 text-[10px] leading-relaxed text-amber-200/90">
+                  部屋に直接頼むと工程表ができないので、
+                  <strong className="font-black">終わっても次の部屋に渡りません。</strong>
+                  仕事は秘書室から始めてください。
+                </p>
+              </div>
+            </aside>
+          )}
+
+          <div className="flex-1 min-w-0">
+
         {/* 起点は担任。ここから仕事が始まる */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 rounded-[24px] bg-white px-5 py-3 shadow-[0_10px_26px_-18px_rgba(0,0,0,0.45)]">
@@ -399,9 +445,10 @@ const FloorView: React.FC = () => {
           </div>
         </div>
 
-        {FLOOR_STAGES.map((stage, i) => {
+        {/* 空の段は飛ばし、番号は実際に出る段だけで数える
+            （秘書室が「統括」に移ったので「受付」が空になり、番号が2から始まっていた） */}
+        {FLOOR_STAGES.filter((stage) => (byStage.get(stage.id) ?? []).length > 0).map((stage, i) => {
           const roomsInStage = byStage.get(stage.id) ?? [];
-          if (!roomsInStage.length) return null;
           return (
             <React.Fragment key={stage.id}>
               <StageArrow />
@@ -436,6 +483,9 @@ const FloorView: React.FC = () => {
                 {bridgeStatus === 'connected' ? rootName ?? '接続中' : '未接続（右上のフォルダから設定）'}
               </span>
             </span>
+          </div>
+        </div>
+
           </div>
         </div>
 
@@ -474,6 +524,7 @@ const FloorView: React.FC = () => {
         )}
 
         <p className="mt-8 text-[10px] text-slate-500 leading-relaxed">
+          部屋どうしは直接つながっていません。秘書室が工程表を登録して初めて、各部屋に発注が飛びます。
           矢印は仕事の流れの案内です。部屋は同時に動き、別の部屋に入っても前の部屋の仕事は続きます。
           成果物を次の部屋へ渡すのは、担任の判断で行ってください。
         </p>

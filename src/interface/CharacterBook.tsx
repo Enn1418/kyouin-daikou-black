@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2, Sparkles, X } from 'lucide-react';
 
-import { AGENTIC_SETS, AgenticSystem, AgentNode, USER_ID } from '../data/agents';
+import { AgenticSystem, AgentNode, USER_ID, listSystems } from '../data/agents';
 import { AGENT_PROFILES, MISSING_PROFILE } from '../data/agentProfiles';
 import { DEFAULT_STAGE, FLOOR_STAGES, HUB_STAGE } from '../data/floorStages';
 import { generateAgentPair, loadAgentArt, loadDrawnFaces, loadStyleSample, saveStyleSample } from '../core/office/agentArt';
@@ -66,9 +66,8 @@ const CharacterBook: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
 
   const rooms = React.useMemo(() => {
-    const byId = new Map<string, AgenticSystem>();
-    [...AGENTIC_SETS, ...customSystems].forEach((s) => byId.set(s.id, s));
-    const all = [...byId.values()].filter((s) => s.teamType === '特別支援');
+    // フロア図と同じ合流のしかた（重ね書き）にする。片方だけ置き換えだと並びがずれる
+    const all = listSystems(customSystems).filter((s) => s.teamType === '特別支援');
     // フロア図と同じ順（仕事が流れる順）に並べる。並びが違うと探し直しになる。
     // 統括（秘書室）は流れの外だが、仕事の入口なので担任のすぐ次に置く
     const order = new Map<string, number>(FLOOR_STAGES.map((s, i) => [s.id, i]));

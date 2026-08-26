@@ -451,12 +451,40 @@ export const AGENTIC_SETS: AgenticSystem[] = [
   ...BASE_SETS
 ];
 
+/**
+ * 自作チームを組み込みチームに重ねる。
+ *
+ * 「Manage Teams」で部屋を編集すると、その時点の形がまるごとブラウザに保存され、
+ * 以後は組み込みの定義より優先される。ところが**保存された形は古い**。
+ * あとからコードに増えた項目を持っていないので、丸ごと置き換えると
+ * **その項目だけが静かに消える。**
+ *
+ * 実際に起きた: `stage`（フロア図での置き場所）を足したあと、秘書室を一度でも
+ * 編集していた担任の画面では stage が欠けたままになり、統括のはずの秘書室が
+ * 既定の「制作」に並んでしまった。コードもデータも正しいのに直らない、
+ * という分かりにくい形で出る（2026-08-26）。
+ *
+ * そこで置き換えではなく重ね書きにする。担任が変えた項目は自作側が勝ち、
+ * 触っていない項目は組み込み側が残る。
+ */
+export function mergeSystem(custom: AgenticSystem): AgenticSystem {
+  const base = AGENTIC_SETS.find((s) => s.id === custom.id);
+  if (!base) return custom;
+  return { ...base, ...custom, stage: custom.stage ?? base.stage };
+}
+
+/** 組み込みと自作をまとめた、画面に並べるための一覧。 */
+export function listSystems(customSystems: AgenticSystem[] = []): AgenticSystem[] {
+  const byId = new Map<string, AgenticSystem>();
+  AGENTIC_SETS.forEach((s) => byId.set(s.id, s));
+  customSystems.forEach((s) => byId.set(s.id, mergeSystem(s)));
+  return [...byId.values()];
+}
+
 export function getAgentSet(id: string, customSystems: AgenticSystem[] = []): AgenticSystem {
-  return (
-    customSystems.find((s) => s.id === id) ||
-    AGENTIC_SETS.find((s) => s.id === id) ||
-    AGENTIC_SETS[0]
-  );
+  const custom = customSystems.find((s) => s.id === id);
+  if (custom) return mergeSystem(custom);
+  return AGENTIC_SETS.find((s) => s.id === id) || AGENTIC_SETS[0];
 }
 
 export function getAllAgents(system: AgenticSystem): AgentNode[] {

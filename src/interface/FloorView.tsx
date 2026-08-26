@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, ArrowUp, ChevronDown, ChevronRight, FolderOpen, Loader2, Sparkles, UserCheck } from 'lucide-react';
 
-import { AGENTIC_SETS, AgenticSystem, USER_ID } from '../data/agents';
+import { AgenticSystem, USER_ID, listSystems } from '../data/agents';
 import { DEFAULT_STAGE, FLOOR_STAGES, HUB_STAGE } from '../data/floorStages';
 import { loadDrawnFaces } from '../core/office/agentArt';
 import { generateRoomBackground, loadDrawnBackgrounds } from '../core/office/roomArt';
@@ -116,9 +116,9 @@ const FloorView: React.FC = () => {
   // 自作チームも部屋として並べる（重複は id で寄せる）。
   // 毎日使う特支の部屋が主。もとから入っている英語のチームは「別棟」に畳む。
   const { main, annex } = React.useMemo(() => {
-    const byId = new Map<string, AgenticSystem>();
-    [...AGENTIC_SETS, ...customSystems].forEach((s) => byId.set(s.id, s));
-    const all = [...byId.values()];
+    // 自作チームは「重ね書き」で合流させる。丸ごと置き換えると、保存された時点より
+    // あとに増えた項目（stage など）が消えて、部屋の置き場所が変わってしまう
+    const all = listSystems(customSystems);
     return {
       main: all.filter((s) => s.teamType === '特別支援'),
       annex: all.filter((s) => s.teamType !== '特別支援')

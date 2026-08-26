@@ -53,28 +53,48 @@ const AGENT_LABEL: Record<FaceStatus, { text: string; className: string }> = {
   idle: { text: '待機', className: 'text-zinc-400' }
 };
 
-/** まとめ役から担当へ枝分かれする線。人数が変わっても等間隔に分かれる。 */
+/**
+ * まとめ役から担当へ枝分かれする線。人数が変わっても等間隔に分かれる。
+ *
+ * 薄い線だと「たまたま近くに並んでいる」ようにしか見えないので、しっかり引く。
+ * 分かれ目と行き先には点を打つ。線の端が明示されると、つながりが目で追える。
+ */
 const Branch: React.FC<{ count: number; color: string }> = ({ count, color }) => {
   if (count < 1) return null;
   const xs = Array.from({ length: count }, (_, i) => (300 * (i + 0.5)) / count);
   return (
     <svg viewBox="0 0 300 24" preserveAspectRatio="none" className="w-full h-5" aria-hidden>
-      <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55">
+      <g stroke={color} strokeWidth="2.8" fill="none" strokeLinecap="round" opacity="0.95">
         <path d="M150 0 V9" />
         {count > 1 && <path d={`M${xs[0]} 9 H${xs[xs.length - 1]}`} />}
         {xs.map((x) => (
           <path key={x} d={`M${x} 9 V22`} />
         ))}
       </g>
+      <g fill={color}>
+        <circle cx="150" cy="9" r="3.2" />
+        {xs.map((x) => (
+          <circle key={x} cx={x} cy="22" r="2.6" />
+        ))}
+      </g>
     </svg>
   );
 };
 
-/** 段と段のあいだの矢印。仕事がここから次へ流れる、という案内。 */
+/**
+ * 段と段のあいだの矢印。仕事がここから次へ流れる、という案内。
+ *
+ * 背景そのものが細い水色の回路線なので、**同じ色・同じ細さで描くと紛れる**
+ * （担任の指摘、2026-08-26）。流れの線は白く太くして、背景とは質を変える。
+ * 背景＝細い水色の線、流れ＝太い白い線、と役割で描き分ける。
+ */
 const StageArrow: React.FC = () => (
-  <div className="flex flex-col items-center py-1" aria-hidden>
-    <span className="w-0.5 h-6 rounded-full bg-cyan-400/50 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-    <span className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[9px] border-t-cyan-400/60" />
+  <div className="flex flex-col items-center py-1.5" aria-hidden>
+    <span className="w-[5px] h-9 rounded-full bg-white/90 shadow-[0_0_14px_rgba(255,255,255,0.55),0_0_28px_rgba(34,211,238,0.7)]" />
+    <span
+      className="w-0 h-0 border-x-[11px] border-x-transparent border-t-[15px] border-t-white/90"
+      style={{ filter: 'drop-shadow(0 0 10px rgba(34,211,238,0.8))' }}
+    />
   </div>
 );
 
@@ -404,8 +424,12 @@ const FloorView: React.FC = () => {
           */}
           {hubRooms.length > 0 && (
             <aside className="shrink-0 lg:w-[346px] lg:sticky lg:top-2 lg:self-start">
-              <div className="rounded-[36px] px-4 py-5 lg:border-r-2 lg:border-dashed lg:border-cyan-400/30"
-                   style={stageFloor('#FDE9D9')}>
+              {/* 右端の破線が「全部の段にかかっている」ことを示す。
+                  背景の回路線と紛れないよう、白く太く引く */}
+              <div
+                className="relative rounded-[36px] px-4 py-5 lg:border-r-[4px] lg:border-dashed lg:border-white/55"
+                style={{ ...stageFloor('#FDE9D9'), filter: 'drop-shadow(0 0 12px rgba(34,211,238,0.35))' }}
+              >
                 <div className="mb-3 flex items-center gap-2 px-1">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white text-darkDelegation text-[11px] font-black shadow-sm">
                     統

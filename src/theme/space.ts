@@ -11,10 +11,16 @@ import type { CSSProperties } from 'react';
  * 鍵が無いときに出せず、拡大したときにぼやけるため。線は何倍に伸ばしても細いまま。
  */
 
-/** 回路の線。タイルなので、どれだけ下にスクロールしても途切れない。 */
+/**
+ * 回路の線。タイルなので、どれだけ下にスクロールしても途切れない。
+ *
+ * 濃さは控えめにしてある。**手前に引く流れの矢印と同じ水色で、同じくらい細い**と、
+ * どれが背景でどれが流れか見分けられなくなるため（担任の指摘、2026-08-26）。
+ * 背景＝薄い水色の細線、流れ＝白い太線、という住み分けにしている。
+ */
 const CIRCUIT_TILE = encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'>
-    <g fill='none' stroke='#38BDF8' stroke-width='1.1' opacity='0.55'>
+    <g fill='none' stroke='#38BDF8' stroke-width='1.1' opacity='0.34'>
       <path d='M0 46 H64 V0'/>
       <path d='M180 132 H112 V180'/>
       <path d='M44 180 V118 H96'/>
@@ -22,7 +28,7 @@ const CIRCUIT_TILE = encodeURIComponent(
       <path d='M0 132 H26'/>
       <path d='M156 96 H180'/>
     </g>
-    <g fill='#22D3EE' opacity='0.8'>
+    <g fill='#22D3EE' opacity='0.5'>
       <circle cx='64' cy='46' r='2.6'/>
       <circle cx='112' cy='132' r='2.6'/>
       <circle cx='96' cy='118' r='2.6'/>

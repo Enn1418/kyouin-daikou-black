@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { useUiStore } from '../integration/store/uiStore';
 import { useBridgeStore } from '../integration/store/bridgeStore';
 import { checkBridge } from '../core/bridge/bridgeClient';
+import { AgentBrain } from '../core/agent/AgentBrain';
+import { explainApiError } from '../core/llm/explainError';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
 interface BYOKModalProps {
@@ -52,6 +54,10 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
   };
 
   const handleSave = () => {
+    // 保存＝担任が手を打った合図。上限や残高で止めていた呼び出しを解く。
+    // 上限が明けたあとも、この画面で保存すればまた動き出す
+    AgentBrain.clearBlock();
+
     const config = {
       apiKey: apiKey.trim(),
       geminiApiKey: geminiApiKey.trim(),
@@ -117,31 +123,39 @@ const BYOKModal: React.FC<BYOKModalProps> = ({ onClose }) => {
             </p>
           </div>
 
-          {/* Error Message */}
+          {/*
+            エラー表示。**何が起きたか／次に何をするか**を先に日本語で出し、
+            受け取ったままの文字列は折りたたんで下に置く。
+            以前は英語のJSONをそのまま出していて、担任には読み取れなかった（2026-08-27）。
+          */}
           {byokError && (() => {
-            const isLongError = byokError.length > 120;
-            const displayError = isErrorExpanded || !isLongError ? byokError : byokError.slice(0, 110) + '...';
+            const e = explainApiError(byokError);
 
             return (
-              <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
+              <div className="mb-6 p-3.5 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2" translate="no">
                 <div className="mt-0.5 text-red-500 shrink-0">
                   <X size={14} strokeWidth={3} className="rotate-45" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-red-500 mb-0.5">API Error</p>
-                  <div className={`${isErrorExpanded ? 'max-h-48' : 'max-h-24'} overflow-y-auto pr-1`}>
-                    <p className="text-[11px] font-medium text-red-600 leading-tight break-words whitespace-pre-wrap">
-                      {displayError}
-                    </p>
-                    {isLongError && (
-                      <button
-                        onClick={() => setIsErrorExpanded(!isErrorExpanded)}
-                        className="mt-1 text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors cursor-pointer"
-                      >
-                        {isErrorExpanded ? 'Show Less' : 'Show More'}
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-[12px] font-black text-red-700 leading-snug">{e.title}</p>
+                  <p className="mt-1.5 text-[11px] font-medium text-red-600 leading-relaxed whitespace-pre-wrap">
+                    {e.advice}
+                  </p>
+
+                  <button
+                    onClick={() => setIsErrorExpanded(!isErrorExpanded)}
+                    className="mt-2 text-[10px] font-black text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                  >
+                    {isErrorExpanded ? '詳しい表示を隠す' : '詳しい表示（英語の原文）'}
+                  </button>
+
+                  {isErrorExpanded && (
+                    <div className="mt-1.5 max-h-40 overflow-y-auto pr-1">
+                      <p className="text-[10px] font-mono text-red-500/80 leading-tight break-words whitespace-pre-wrap">
+                        {e.raw}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );

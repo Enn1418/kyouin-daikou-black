@@ -1,5 +1,6 @@
 import { LLMMessage } from '../llm/types';
 import { GeminiProvider } from '../llm/providers/GeminiProvider';
+import { explainApiError } from '../llm/explainError';
 import { ClaudeProvider } from '../llm/providers/ClaudeProvider';
 import { useUiStore } from '../../integration/store/uiStore';
 import { getRoom, useCoreStore } from '../../integration/store/coreStore';
@@ -53,12 +54,29 @@ export class AgentBrain {
     'submit_qa_verdict'
   ]);
 
+  /**
+   * 担任が手を打つまで直らないエラーが出たら、全部屋の呼び出しを止める。
+   *
+   * 部屋は数秒ごとに動こうとするので、上限や残高で止まったときに放っておくと、
+   * **失敗し続けて設定画面が開きっぱなしになり、何も操作できなくなる。**
+   * ここで止めておき、担任がキーを保存し直したら（＝手を打ったら）また動かす。
+   */
+  private static blockedReason: string | null = null;
+
+  /** 設定を保存し直したときに呼ぶ。止めていた呼び出しを再開する。 */
+  public static clearBlock() {
+    AgentBrain.blockedReason = null;
+  }
+
   constructor(private readonly host: BrainHost) {
     this.refreshFromStore();
   }
 
   public async think(prompt: string, options: ThinkOptions = {}): Promise<{ text: string, toolCalls: any[] }> {
     if (this.isThinking) return { text: '', toolCalls: [] };
+    // 待っても直らないエラーで止めている間は、呼びに行かない。
+    // 黙って戻るのは、ここで投げると設定画面が何度も開き直してしまうため
+    if (AgentBrain.blockedReason) return { text: '', toolCalls: [] };
     this.isThinking = true;
 
     try {
@@ -236,6 +254,8 @@ export class AgentBrain {
     } catch (error) {
       console.error(`[AgentBrain:${this.host.data.name}] Logic error:`, error);
       const errMsg = error instanceof Error ? error.message : String(error);
+      // 待っても直らない類なら、全部屋の呼び出しを止める（失敗の繰り返しを断つ）
+      if (explainApiError(errMsg).blocking) AgentBrain.blockedReason = errMsg;
       useUiStore.getState().setBYOKOpen(true, errMsg);
       throw error;
     } finally {
@@ -388,6 +408,8 @@ export class AgentBrain {
       console.error('[AgentBrain] Final asset generation failed:', error);
       core.setIsGeneratingAsset(false, rid);
       const errMsg = error instanceof Error ? error.message : String(error);
+      // 待っても直らない類なら、全部屋の呼び出しを止める（失敗の繰り返しを断つ）
+      if (explainApiError(errMsg).blocking) AgentBrain.blockedReason = errMsg;
       useUiStore.getState().setBYOKOpen(true, errMsg);
       core.addLogEntry({
         agentIndex: 0,

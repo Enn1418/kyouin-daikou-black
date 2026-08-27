@@ -1,4 +1,5 @@
 import { getAgentSet } from '../../data/agents';
+import { getRoom, useCoreStore } from '../../integration/store/coreStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 import { AgentSimulation } from '../../simulation/core/AgentSimulation';
 
@@ -54,6 +55,23 @@ class RoomManagerImpl {
   public disposeAll() {
     this.sims.forEach((sim) => sim.dispose());
     this.sims.clear();
+  }
+
+  /**
+   * 部屋のまとめ役に一言届けて、続きを考えさせる。
+   *
+   * 依頼票を画面から書き換えても、部屋の中の誰もそれを知らない。
+   * ストアの購読は「タスクを開始する」経路しか無く、会話を進める経路が無いので、
+   * CEO が画面で答えても部屋は止まったままだった（2026-08-27）。
+   * 部屋が寝ていれば、この一言を仕事として始める。
+   */
+  public notifyLead(roomId: string, message: string) {
+    const sim = this.ensure(roomId);
+    if (getRoom(roomId).phase === 'idle') {
+      useCoreStore.getState().startProject(message, roomId);
+      return;
+    }
+    void sim.notifyLead(message);
   }
 }
 

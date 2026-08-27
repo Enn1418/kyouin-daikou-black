@@ -9,6 +9,7 @@ import {
   SheetField
 } from '../core/jobs/types';
 import { isFilled, missingRequired } from '../core/jobs/requirementSheet';
+import { roomManager } from '../core/rooms/RoomManager';
 import { useJobStore } from '../integration/store/jobStore';
 
 /**
@@ -35,13 +36,43 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
   const job = useJobStore((s) => s.jobs[jobId]);
   const { updateSheet, lockSheet, setBudget } = useJobStore();
 
+  // CEO がこの画面で書き換えたか。書き換えたまま閉じたら秘書室に知らせる。
+  // 部屋は依頼票の変化を自分では見ていないので、知らせないと止まったままになる
+  const editedRef = React.useRef(false);
+
   if (!job) return null;
 
   const missing = missingRequired(job.sheet);
   const locked = !!job.sheetLockedAt;
 
-  const set = (key: keyof RequirementSheet, value: any) =>
+  const set = (key: keyof RequirementSheet, value: any) => {
+    editedRef.current = true;
     updateSheet(jobId, { [key]: value } as Partial<RequirementSheet>);
+  };
+
+  /** 閉じるときに、書き換えがあれば秘書室のまとめ役に続きを促す。 */
+  const closeAndNotify = () => {
+    if (editedRef.current && !useJobStore.getState().jobs[jobId]?.sheetLockedAt) {
+      roomManager.notifyLead(
+        'sec-office',
+        'CEO が画面から依頼票を書き足しました。依頼票の現状を確認し、' +
+        '不足が残っていればまとめて尋ね、すべて埋まっていれば内容を CEO に確認して ' +
+        'lock_requirement_sheet で確定し、段取りへ進めてください。'
+      );
+    }
+    onClose();
+  };
+
+  /** 確定して閉じる。秘書室に「段取りへ進め」と知らせる。 */
+  const lockAndNotify = () => {
+    lockSheet(jobId);
+    roomManager.notifyLead(
+      'sec-office',
+      'CEO が画面から依頼票を確定しました。タスク設計担当に段取りを作らせ、' +
+      'set_work_plan で登録してください。登録できたら CEO に承認を促してください。'
+    );
+    onClose();
+  };
 
   const renderField = (f: SheetField) => {
     const v = job.sheet[f.key];
@@ -152,7 +183,7 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={closeAndNotify}
             className="text-zinc-400 hover:text-darkDelegation transition-colors shrink-0 cursor-pointer"
           >
             <X size={18} />
@@ -222,7 +253,7 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
             </button>
           ) : (
             <button
-              onClick={() => { lockSheet(jobId); onClose(); }}
+              onClick={lockAndNotify}
               disabled={missing.length > 0}
               className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[11px] font-black transition-all
                 ${missing.length > 0

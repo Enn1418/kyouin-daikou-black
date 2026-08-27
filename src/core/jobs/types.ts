@@ -185,5 +185,9 @@ export interface Job {
   updatedAt: number;
 }
 
-/** 依頼ごとの上限額の既定。CEO の承認により設定（docs/system-redesign.md §12）。 */
-export const DEFAULT_BUDGET_USD = 2;
+/**
+ * 依頼ごとの上限額の既定。CEO の承認により設定（docs/system-redesign.md §12）。
+ * $2 では単元まるごと（20時間分）の案件が途中で止まりやすかったため、
+ * $5 に引き上げた（CEO の判断、2026-08-27）。依頼票の画面から案件ごとに変えられる。
+ */
+export const DEFAULT_BUDGET_USD = 5;

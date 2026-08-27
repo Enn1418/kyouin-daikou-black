@@ -141,12 +141,20 @@ S8. 教材フォルダは接続されていない。ファイルの読み書き�
       ? `\nこの学級での約束（過去の差し戻しから。毎回これに従う）:\n${memory.slice(-4000)}\n`
       : '';
 
-    // S14: 確定した依頼票。**全部門に同じ文面が入る。**
+    // S14: 依頼票。**全部門に同じ文面が入る。**
     // 部門ごとに違う要約を作らないのは、それが「方針のぶれ」そのものだから
-    // （docs/system-redesign.md §2.3）。確定前（承認前）の案件は載せない。
+    // （docs/system-redesign.md §2.3）。
+    //
+    // 確定前も「作成中」と明記して載せる。以前は確定後しか載せなかったため、
+    // 受付段階の秘書室の担当には依頼の中身が何も見えず、
+    // 「CEO からの依頼内容が提供されていません」と一般論を返していた（2026-08-27）。
     const job = getActiveJob();
-    const sheetBlock = job?.sheetLockedAt
-      ? `\n${buildSheetSummary(job.sheet, job.title)}\n`
+    const sheetBlock = job
+      ? job.sheetLockedAt
+        ? `\n${buildSheetSummary(job.sheet, job.title)}\n`
+        : `\n【依頼票（作成中・未確定）】いま CEO から聞き取れている条件は次のとおり。` +
+          `（未記入）の欄は推測で埋めず、CEO に尋ねる。\n` +
+          `${buildSheetSummary(job.sheet, job.title).split('\n').slice(1).join('\n')}\n`
       : '';
 
     const pendingReviews = tasks.filter(t => t.assignedAgentId === agent.index && t.reviewComments);

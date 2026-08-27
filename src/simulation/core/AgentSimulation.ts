@@ -138,6 +138,27 @@ export class AgentSimulation {
     }
   }
 
+  /**
+   * まとめ役に一言届けて、続きを考えさせる（RoomManager.notifyLead から）。
+   *
+   * 考え中に割り込むと二重思考ガード（brain.isThinking）で黙って捨てられるので、
+   * 空くまで少し待ってから渡す。30秒待っても空かなければ諦める
+   * （その場合、CEO の次の操作で会話が動くのでそこで拾われる）。
+   */
+  public async notifyLead(message: string) {
+    const lead = this.getAgent(this.system.leadAgent.index);
+    if (!lead) return;
+    for (let i = 0; i < 30 && lead.isThinking; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (lead.isThinking) return;
+    try {
+      await lead.think(message, { silent: true });
+    } catch (err) {
+      console.error('[AgentSimulation] notifyLead failed:', err);
+    }
+  }
+
   private async checkProjectCompletion() {
     const room = getRoom(this.roomId);
     const allTasksFinished = room.tasks.length > 0 && room.tasks.every(t => t.status === 'done');

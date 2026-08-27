@@ -31,6 +31,15 @@ export interface RequirementSheet {
   unitName: string;         // 単元名
   teachingContent: string;  // 指導したい内容
   competencies: string;     // 児童に身につけさせたい力
+  /**
+   * やりたい活動のイメージ。
+   *
+   * 「何を分かってほしいか」と「どんな力をつけたいか」だけでは、
+   * 授業の絵が浮かばないまま作られる。CEO の頭の中にある
+   * 「こういう活動をしたい」「この教材をこう使いたい」を受け取る欄
+   * （CEO の要望、2026-08-27）。
+   */
+  activityImage: string;
   hours: number;            // 授業時数
   pupils: string;           // 児童の実態（匿名IDのみ。既定は教材フォルダの実態ファイル）
   participants: string[];   // この単元に参加する児童（匿名ID）
@@ -61,6 +70,7 @@ export const SHEET_FIELDS: SheetField[] = [
   { key: 'unitName', label: '単元名', required: true, kind: 'text', hint: '例: かさ（LとdL）' },
   { key: 'teachingContent', label: '指導したい内容', required: true, kind: 'multiline', hint: '何を分かってほしいか。1〜3行' },
   { key: 'competencies', label: '身につけさせたい力', required: true, kind: 'multiline', hint: '知識・技能／思考・判断・表現／学びに向かう力のどれでも' },
+  { key: 'activityImage', label: 'やりたい活動のイメージ', required: false, kind: 'multiline', hint: '例: 実物を触ってから絵カードで並べ替える／タブレットで撮った写真を使って発表する。教材の使い方のイメージがあれば書いてください' },
   { key: 'hours', label: '授業時数', required: true, kind: 'number', hint: '単元全体で何時間か' },
   { key: 'pupils', label: '児童の実態', required: true, kind: 'multiline', hint: '匿名ID（A児・B児…）で。教材フォルダを繋いでいれば「実態ファイルによる」でよい' },
   { key: 'participants', label: '参加する児童', required: true, kind: 'list', hint: '例: A児, B児, D児（全員でなくてよい）' },
@@ -73,6 +83,7 @@ export const SHEET_FIELDS: SheetField[] = [
 
 export const EMPTY_SHEET: RequirementSheet = {
   subject: '', grade: '', unitName: '', teachingContent: '', competencies: '',
+  activityImage: '',
   hours: 0, pupils: '', participants: [], ict: [], wantedOutputs: [],
   outputFormats: [], style: '', constraints: ''
 };

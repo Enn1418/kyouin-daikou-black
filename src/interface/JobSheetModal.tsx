@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Check, Lock, X } from 'lucide-react';
+import { AlertCircle, Check, Download, Lock, Upload, X } from 'lucide-react';
 
 import {
   OUTPUT_FORMAT_LABEL,
@@ -8,7 +8,7 @@ import {
   SHEET_FIELDS,
   SheetField
 } from '../core/jobs/types';
-import { isFilled, missingRequired } from '../core/jobs/requirementSheet';
+import { buildSheetMarkdown, isFilled, missingRequired, parseSheetMarkdown } from '../core/jobs/requirementSheet';
 import { roomManager } from '../core/rooms/RoomManager';
 import { useJobStore } from '../integration/store/jobStore';
 
@@ -39,6 +39,18 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
   // CEO がこの画面で書き換えたか。書き換えたまま閉じたら秘書室に知らせる。
   // 部屋は依頼票の変化を自分では見ていないので、知らせないと止まったままになる
   const editedRef = React.useRef(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
+
+  /**
+   * 読点で区切る欄の、打っている途中の文字列。
+   *
+   * 以前は1文字打つたびに配列へ変換していたので、「、」を打った瞬間に
+   * 区切りとして消費されて画面から消え、**読点そのものを入力できなかった**
+   * （CEO の指摘、2026-08-27）。打っている間はそのままの文字列を保ち、
+   * 欄から離れたときに配列へ直す。
+   */
+  const [draft, setDraft] = React.useState<Record<string, string>>({});
 
   if (!job) return null;
 
@@ -50,8 +62,61 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
     updateSheet(jobId, { [key]: value } as Partial<RequirementSheet>);
   };
 
+  /** 打ちかけの欄を確定する。閉じる前・確定前に必ず通す（打った内容を捨てないため）。 */
+  const flushDrafts = () => {
+    Object.entries(draft).forEach(([key, raw]) => {
+      set(key as keyof RequirementSheet, toList(raw));
+    });
+    setDraft({});
+  };
+
+  /**
+   * いまの内容を雛形として書き出す。
+   *
+   * 「思いついたときに書いておいて、あとから読み込む」ための持ち出し口。
+   * 空の依頼票から書き出せば、そのまま白紙の雛形になる。
+   */
+  const exportTemplate = () => {
+    flushDrafts();
+    const md = buildSheetMarkdown(
+      useJobStore.getState().jobs[jobId].sheet,
+      job.title
+    );
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `依頼票_${job.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setNotice('雛形を書き出しました。書き足してから読み込めます。');
+  };
+
+  /** 書いておいた雛形を読み込む。読めた欄と、読めなかった見出しの両方を伝える。 */
+  const importTemplate = async (file: File) => {
+    try {
+      const { patch, filled, unknown } = parseSheetMarkdown(await file.text());
+      if (filled.length === 0) {
+        setNotice(
+          '読み込める項目がありませんでした。「## 教科」のように、' +
+          '項目名を ## の見出しにして、その下に内容を書いてください。'
+        );
+        return;
+      }
+      editedRef.current = true;
+      updateSheet(jobId, patch);
+      setDraft({});
+      setNotice(
+        `${filled.length}項目を読み込みました（${filled.join('、')}）。` +
+        (unknown.length ? ` 読めなかった見出し: ${unknown.join('、')}` : '')
+      );
+    } catch {
+      setNotice('ファイルを読めませんでした。文字化けしていないか確かめてください。');
+    }
+  };
+
   /** 閉じるときに、書き換えがあれば秘書室のまとめ役に続きを促す。 */
   const closeAndNotify = () => {
+    flushDrafts();
     if (editedRef.current && !useJobStore.getState().jobs[jobId]?.sheetLockedAt) {
       roomManager.notifyLead(
         'sec-office',
@@ -65,6 +130,7 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
 
   /** 確定して閉じる。秘書室に「段取りへ進め」と知らせる。 */
   const lockAndNotify = () => {
+    flushDrafts();
     lockSheet(jobId);
     roomManager.notifyLead(
       'sec-office',
@@ -132,9 +198,18 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
         {f.kind === 'list' && (
           <input
             type="text"
-            value={(v as string[]).join('、')}
+            value={draft[f.key] ?? (v as string[]).join('、')}
             disabled={locked}
-            onChange={(e) => set(f.key, toList(e.target.value))}
+            onChange={(e) => {
+              editedRef.current = true;
+              setDraft((d) => ({ ...d, [f.key]: e.target.value }));
+            }}
+            onBlur={() => {
+              const raw = draft[f.key];
+              if (raw === undefined) return;
+              set(f.key, toList(raw));
+              setDraft(({ [f.key]: _done, ...rest }) => rest);
+            }}
             placeholder="読点（、）で区切って書いてください"
             className={base}
           />
@@ -206,6 +281,46 @@ const JobSheetModal: React.FC<Props> = ({ jobId, onClose }) => {
             <span>
               あと <b>{missing.length}項目</b>で確定できます — {missing.map((f) => f.label).join('、')}
             </span>
+          </div>
+        )}
+
+        {/* 雛形の持ち出し口。前もって書いておいた依頼票を、ここから流し込める */}
+        {!locked && (
+          <div className="mx-6 mt-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 text-[11px] font-black text-darkDelegation hover:border-zinc-300 transition-colors cursor-pointer"
+              title="前もって書いておいた依頼票（.md / .txt）を読み込みます"
+            >
+              <Upload size={13} /> ファイルから読み込む
+            </button>
+            <button
+              onClick={exportTemplate}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 text-[11px] font-bold text-zinc-500 hover:text-darkDelegation hover:border-zinc-300 transition-colors cursor-pointer"
+              title="いまの内容を雛形として保存します。白紙のまま押せば白紙の雛形になります"
+            >
+              <Download size={13} /> 雛形を書き出す
+            </button>
+            <span className="text-[10px] text-zinc-400">
+              思いついたときに雛形へ書いておけば、ここから流し込めます
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".md,.txt,.markdown,text/plain,text/markdown"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void importTemplate(f);
+                e.target.value = '';    // 同じファイルをもう一度選べるようにする
+              }}
+            />
+          </div>
+        )}
+
+        {notice && (
+          <div className="mx-6 mt-3 px-3 py-2.5 rounded-xl bg-sky-50 text-sky-900 text-[11px] leading-relaxed">
+            {notice}
           </div>
         )}
 

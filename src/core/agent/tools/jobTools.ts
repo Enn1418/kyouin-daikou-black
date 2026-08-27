@@ -24,6 +24,7 @@ interface SheetArgs {
   grade?: string;
   unitName?: string;
   teachingContent?: string;
+  activityImage?: string;
   competencies?: string;
   hours?: number;
   pupils?: string;
@@ -48,6 +49,7 @@ function toPatch(a: SheetArgs): Partial<RequirementSheet> {
   const g = str(a.grade); if (g) p.grade = g;
   const u = str(a.unitName); if (u) p.unitName = u;
   const t = str(a.teachingContent); if (t) p.teachingContent = t;
+  const ai = str(a.activityImage); if (ai) p.activityImage = ai;
   const c = str(a.competencies); if (c) p.competencies = c;
   const pu = str(a.pupils); if (pu) p.pupils = pu;
   const st = str(a.style); if (st) p.style = st;
@@ -164,6 +166,12 @@ const SHEET_PROPS = {
   grade: { type: 'string', description: '学年（例: 3年、1〜4年）' },
   unitName: { type: 'string', description: '単元名（例: わり算の導入）' },
   teachingContent: { type: 'string', description: '指導したい内容' },
+  activityImage: {
+    type: 'string',
+    description:
+      'やりたい活動のイメージ。CEO が「こういう活動をしたい」「この教材をこう使いたい」と' +
+      '話したら、その言葉をここに入れる（例: 実物を触ってから絵カードで並べ替える）'
+  },
   competencies: { type: 'string', description: '児童に身につけさせたい力' },
   hours: { type: 'integer', description: '授業時数（単元全体）' },
   pupils: { type: 'string', description: '児童の実態。匿名IDのみ。氏名は書かない' },

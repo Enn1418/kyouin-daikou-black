@@ -79,6 +79,10 @@ export function buildSheetSummary(sheet: RequirementSheet, jobTitle?: string): s
     `希望する成果物: ${listOrDash(sheet.wantedOutputs)} ／ 出力形式: ${formats}`
   ];
 
+  // 活動のイメージは、あれば必ず載せる。授業の絵が浮かぶかどうかがここで決まる
+  if (sheet.activityImage.trim()) {
+    lines.push(`やりたい活動のイメージ: ${clip(sheet.activityImage, 160)}`);
+  }
   if (sheet.ict.length) lines.push(`使えるICT・教材: ${listOrDash(sheet.ict)}`);
   if (sheet.style.trim()) lines.push(`出力スタイル: ${clip(sheet.style, 80)}`);
   if (sheet.constraints.trim()) lines.push(`制約・希望: ${clip(sheet.constraints, 120)}`);
@@ -112,4 +116,67 @@ export function buildSheetMarkdown(sheet: RequirementSheet, jobTitle: string): s
     `この案件の条件です。**全部門がこの内容を見て作ります。**\n` +
     `直したいところがあれば、アプリの依頼票画面から直してください。\n\n` +
     rows.join('\n');
+}
+
+/** 未記入を表す書き方。書き出した雛形をそのまま読み込んでも空のままにする。 */
+const BLANK_MARKS = new Set(['（未記入）', '(未記入)', '未記入', '-', '—', '']);
+
+/**
+ * 書き出した依頼票（Markdown）を読み戻す。
+ *
+ * CEO が「思いついたときに雛形へ書いておいて、あとから読み込む」ための入口。
+ * 見出し（## ラベル）の下の行を、そのラベルの欄に入れるだけの素直な形にしてある。
+ * ラベルは `SHEET_FIELDS` から引くので、**画面の項目が増えれば読み込みも自動で追随する**。
+ *
+ * 読めなかった見出しは黙って捨てず、呼び出し側に返して CEO に見せる。
+ * 「入れたつもりが入っていない」がいちばん困るため。
+ */
+export function parseSheetMarkdown(text: string): {
+  patch: Partial<RequirementSheet>;
+  filled: string[];
+  unknown: string[];
+} {
+  const byLabel = new Map(SHEET_FIELDS.map((f) => [f.label, f]));
+  const patch: Partial<RequirementSheet> = {};
+  const filled: string[] = [];
+  const unknown: string[] = [];
+
+  // 「## 見出し」で切り、次の見出しまでを値とみなす
+  const sections = text.split(/^##[ \t]+/m).slice(1);
+
+  for (const section of sections) {
+    const nl = section.indexOf('\n');
+    const rawLabel = (nl === -1 ? section : section.slice(0, nl)).trim();
+    const body = (nl === -1 ? '' : section.slice(nl + 1)).trim();
+
+    // 「（必須）」などの飾りを落としてから引く
+    const label = rawLabel.replace(/[（(](必須|任意)[）)]\s*$/, '').trim();
+    const field = byLabel.get(label);
+    if (!field) {
+      if (label) unknown.push(label);
+      continue;
+    }
+    if (BLANK_MARKS.has(body)) continue;
+
+    if (field.kind === 'list') {
+      const items = body.split(/[,、，・\n]/).map((s) => s.trim()).filter(Boolean);
+      if (items.length) { (patch as any)[field.key] = items; filled.push(field.label); }
+    } else if (field.kind === 'number') {
+      const n = parseInt(body.replace(/[^0-9]/g, ''), 10);
+      if (Number.isFinite(n) && n > 0) { (patch as any)[field.key] = n; filled.push(field.label); }
+    } else if (field.kind === 'formats') {
+      // ラベル（「Markdown（そのまま読める）」等）でも、内部の値（md 等）でも受ける
+      const wanted = body.split(/[,、，・\n]/).map((s) => s.trim()).filter(Boolean);
+      const codes = (Object.keys(OUTPUT_FORMAT_LABEL) as (keyof typeof OUTPUT_FORMAT_LABEL)[])
+        .filter((code) =>
+          wanted.some((w) => w === code || OUTPUT_FORMAT_LABEL[code].startsWith(w.split('（')[0]))
+        );
+      if (codes.length) { (patch as any)[field.key] = codes; filled.push(field.label); }
+    } else {
+      (patch as any)[field.key] = body;
+      filled.push(field.label);
+    }
+  }
+
+  return { patch, filled, unknown };
 }

@@ -54,6 +54,28 @@ const JobBar: React.FC = () => {
   // 依頼票ごと消えて戻せないので、うっかり1クリックでは消えないようにする
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
 
+  /**
+   * 案件を呼び出す。
+   *
+   * 以前は活動中の案件を差し替えるだけで、**秘書室には何も伝わらなかった**。
+   * CEO から見ると案件を開いたのに誰も動かず、チャットで「案件を確認して」と
+   * 打ち直す必要があった（CEO の指摘、2026-08-27）。呼び出しは「この案件を
+   * 進めたい」という意思表示なので、そのまま秘書室に取り次ぐ。
+   *
+   * 終わった案件（完了・中止）では起こさない。読み返すために開くことがあるため。
+   */
+  const pickJob = (j: Job) => {
+    setActiveJob(j.id);
+    setOpen(false);
+    if (FINISHED.includes(j.status)) return;
+    roomManager.notifyLead(
+      'sec-office',
+      `CEO が案件「${j.title}」を呼び出しました。この案件の依頼票と段取りの状態を確認し、` +
+      '不足があればまとめて尋ね、確定済みで段取りが未登録なら set_work_plan で登録し、' +
+      '承認待ちなら CEO に承認を促してください。すでに進行中なら、いまの状況を一言で伝えてください。'
+    );
+  };
+
   const cancelJob = (j: Job) => {
     setStatus(j.id, '中止');
     addEvent(j.id, 'CEO', '案件を中止した');
@@ -166,9 +188,9 @@ const JobBar: React.FC = () => {
                         ${isActive ? 'bg-emerald-50/60' : 'hover:bg-zinc-50'}`}
                     >
                       <button
-                        onClick={() => { setActiveJob(j.id); setOpen(false); }}
+                        onClick={() => pickJob(j)}
                         className="text-left px-3 py-2.5 flex-1 min-w-0 cursor-pointer"
-                        title={isActive ? 'いま呼び出している案件' : 'この案件を呼び出す'}
+                        title={isActive ? 'いま呼び出している案件' : 'この案件を呼び出して、秘書室に続きを頼む'}
                       >
                         <span className="flex items-center gap-2">
                           {isActive && (

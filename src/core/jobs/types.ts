@@ -10,12 +10,13 @@
  */
 
 /** 出力形式。印刷用HTMLは教材フォルダ接続時のみ実際に書き出せる。 */
-export type OutputFormat = 'md' | 'print-html' | 'image' | 'bundle';
+export type OutputFormat = 'md' | 'print-html' | 'image' | 'csv' | 'bundle';
 
 export const OUTPUT_FORMAT_LABEL: Record<OutputFormat, string> = {
   md: 'Markdown（そのまま読める）',
   'print-html': '印刷用HTML（そのまま印刷できる）',
   image: '画像（掲示物・絵カード）',
+  csv: '表計算（Excelで開ける名簿・記録表）',
   bundle: '一式（上をまとめて）'
 };
 

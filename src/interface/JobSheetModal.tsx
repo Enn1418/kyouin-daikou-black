@@ -22,7 +22,7 @@ import { useJobStore } from '../integration/store/jobStore';
  * 画面が独自に「これは埋まっている扱い」を持つと、検査とずれる。
  */
 
-const FORMATS: OutputFormat[] = ['md', 'print-html', 'image', 'bundle'];
+const FORMATS: OutputFormat[] = ['md', 'print-html', 'image', 'csv', 'bundle'];
 
 const toList = (v: string): string[] =>
   v.split(/[,、，]/).map((s) => s.trim()).filter(Boolean);

@@ -188,8 +188,18 @@ async function writeFile(relative, content, rootName) {
     if (e.code !== 'ENOENT') throw e;
   }
 
-  await fs.writeFile(target, content, 'utf8');
-  return { path: relative, bytes: Buffer.byteLength(content, 'utf8'), backedUp };
+  // CSV だけ先頭に BOM を付ける。
+  //
+  // Excel は .csv を開くとき、BOM が無いと日本語を Shift-JIS だと思い込み、
+  // **中身が全部文字化けする。** 担任が表計算で開けることが CSV を選ぶ理由なので、
+  // 化けた時点でこの形式は使いものにならない。
+  // 読み込み側（readFile）は BOM を落とすので、アプリから読み直しても
+  // 先頭に見えない文字は残らない。
+  const isCsv = path.extname(target).toLowerCase() === '.csv';
+  const body = isCsv && !content.startsWith('﻿') ? `﻿${content}` : content;
+
+  await fs.writeFile(target, body, 'utf8');
+  return { path: relative, bytes: Buffer.byteLength(body, 'utf8'), backedUp };
 }
 
 /**

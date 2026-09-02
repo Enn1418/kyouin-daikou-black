@@ -36,7 +36,7 @@ interface SheetArgs {
   constraints?: string;
 }
 
-const FORMATS: OutputFormat[] = ['md', 'print-html', 'image', 'bundle'];
+const FORMATS: OutputFormat[] = ['md', 'print-html', 'image', 'csv', 'bundle'];
 
 /** 与えられた項目だけを取り出す。触れられていない欄は書き換えない。 */
 function toPatch(a: SheetArgs): Partial<RequirementSheet> {
@@ -186,7 +186,7 @@ const SHEET_PROPS = {
   },
   outputFormats: {
     type: 'array',
-    items: { type: 'string', enum: ['md', 'print-html', 'image', 'bundle'] },
+    items: { type: 'string', enum: ['md', 'print-html', 'image', 'csv', 'bundle'] },
     description: '出力形式'
   },
   style: { type: 'string', description: '出力スタイル（略案でよい／詳しい指導案がほしい 等）' },

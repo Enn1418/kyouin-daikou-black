@@ -1,11 +1,22 @@
 import { USER_COLOR } from '../theme/brand';
 import { DEFAULT_MODELS } from '../core/llm/constants';
 
+import type { FloorStage } from './floorStages';
+import { QA_SETS } from './qaAgents';
+import { SECRETARIAT_SETS } from './secretariatAgents';
+import { SPECIAL_NEEDS_SETS } from './teacherAgents';
+
 export const USER_ID = 'user';
-export const USER_NAME = 'User';
-export const MAX_AGENTS = 5;
+export const USER_NAME = 'CEO';
+// 役割を細かく区切って人数を増やしたい（担任の要望）ので、1部屋の上限は10人。
+export const MAX_AGENTS = 10;
 export { USER_COLOR };
-export const DEFAULT_AGENTIC_SET_ID = 'single-agent';
+/**
+ * 起動時に選ばれているチーム。このリポジトリは特別支援学級の教材作成が主目的なので、
+ * 主力の「特支・同時異教材室」を既定にする。
+ * （以前は存在しない 'single-agent' を指しており、常に AGENTIC_SETS[0] へフォールバックしていた）
+ */
+export const DEFAULT_AGENTIC_SET_ID = 'sn-multi-tier';
 export interface AgentNode {
   id: string;
   index: number;
@@ -24,6 +35,8 @@ export interface AgenticSystem {
   teamName: string;
   teamType: string;
   teamDescription: string;
+  /** フロア図で並ぶ段（受付→設計→制作→仕上げ→点検→発信）。省略時は「制作」に置かれる。 */
+  stage?: FloorStage;
   color: string;
   outputType: OutputType;
   outputModel: string;
@@ -36,7 +49,7 @@ export interface AgenticSystem {
   leadAgent: AgentNode;
 }
 
-export const AGENTIC_SETS: AgenticSystem[] = [
+const BASE_SETS: AgenticSystem[] = [
   {
     id: 'unboring-net',
     teamName: 'unboring.net',
@@ -428,12 +441,50 @@ export const AGENTIC_SETS: AgenticSystem[] = [
   }
 ];
 
+/** 特別支援学級向けチーム（docs/teacher-edition-design.md）を含めた全チーム。 */
+// 秘書室を先頭に置く。CEO が最初に話しかける部門であり、
+// 一覧でも他部門より上に来るほうが階層と一致する。
+export const AGENTIC_SETS: AgenticSystem[] = [
+  ...SECRETARIAT_SETS,
+  ...SPECIAL_NEEDS_SETS,
+  ...QA_SETS,
+  ...BASE_SETS
+];
+
+/**
+ * 自作チームを組み込みチームに重ねる。
+ *
+ * 「Manage Teams」で部屋を編集すると、その時点の形がまるごとブラウザに保存され、
+ * 以後は組み込みの定義より優先される。ところが**保存された形は古い**。
+ * あとからコードに増えた項目を持っていないので、丸ごと置き換えると
+ * **その項目だけが静かに消える。**
+ *
+ * 実際に起きた: `stage`（フロア図での置き場所）を足したあと、秘書室を一度でも
+ * 編集していた担任の画面では stage が欠けたままになり、統括のはずの秘書室が
+ * 既定の「制作」に並んでしまった。コードもデータも正しいのに直らない、
+ * という分かりにくい形で出る（2026-08-26）。
+ *
+ * そこで置き換えではなく重ね書きにする。担任が変えた項目は自作側が勝ち、
+ * 触っていない項目は組み込み側が残る。
+ */
+export function mergeSystem(custom: AgenticSystem): AgenticSystem {
+  const base = AGENTIC_SETS.find((s) => s.id === custom.id);
+  if (!base) return custom;
+  return { ...base, ...custom, stage: custom.stage ?? base.stage };
+}
+
+/** 組み込みと自作をまとめた、画面に並べるための一覧。 */
+export function listSystems(customSystems: AgenticSystem[] = []): AgenticSystem[] {
+  const byId = new Map<string, AgenticSystem>();
+  AGENTIC_SETS.forEach((s) => byId.set(s.id, s));
+  customSystems.forEach((s) => byId.set(s.id, mergeSystem(s)));
+  return [...byId.values()];
+}
+
 export function getAgentSet(id: string, customSystems: AgenticSystem[] = []): AgenticSystem {
-  return (
-    customSystems.find((s) => s.id === id) ||
-    AGENTIC_SETS.find((s) => s.id === id) ||
-    AGENTIC_SETS[0]
-  );
+  const custom = customSystems.find((s) => s.id === id);
+  if (custom) return mergeSystem(custom);
+  return AGENTIC_SETS.find((s) => s.id === id) || AGENTIC_SETS[0];
 }
 
 export function getAllAgents(system: AgenticSystem): AgentNode[] {

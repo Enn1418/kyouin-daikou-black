@@ -1,6 +1,6 @@
-import { useCoreStore } from '../store/coreStore'
+import { useRoom } from '../store/coreStore'
 import { useActiveTeam } from '../store/teamStore'
-import { useUiStore } from '../store/uiStore'
+import { agentStatusKey, useUiStore } from '../store/uiStore'
 
 export interface ChatAvailability {
   canChat: boolean
@@ -12,9 +12,9 @@ export interface ChatAvailability {
  * the current project phase and the agent's task state.
  */
 export function useChatAvailability(agentIndex: number | null): ChatAvailability {
-  const { phase, tasks, isGeneratingAsset } = useCoreStore()
-  const agentStatus = useUiStore((s) => (agentIndex !== null ? s.agentStatuses[agentIndex] : 'idle'))
+  const { phase, tasks, isGeneratingAsset } = useRoom()
   const system = useActiveTeam()
+  const agentStatus = useUiStore((s) => (agentIndex !== null ? s.agentStatuses[agentStatusKey(system.id, agentIndex)] : 'idle'))
 
   if (agentIndex === null) return { canChat: false, reason: '' }
   if (isGeneratingAsset) return { canChat: false, reason: 'Delivering...' }

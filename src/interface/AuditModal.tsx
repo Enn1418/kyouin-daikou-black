@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, CheckCircle2, AlertCircle, GitPullRequest } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useCoreStore } from '../integration/store/coreStore';
+import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { getAllAgents } from '../data/agents';
 import { useActiveTeam } from '../integration/store/teamStore';
@@ -18,7 +18,8 @@ interface AuditModalProps {
 }
 
 export const AuditModal: React.FC<AuditModalProps> = ({ taskId, isOpen, onClose, viewOnly }) => {
-  const { tasks, approveTask, rejectTask } = useCoreStore();
+  const { approveTask, rejectTask } = useCoreStore();
+  const { tasks } = useRoom();
   const { setSelectedNpc, setChatting } = useUiStore();
   const activeTeam = useActiveTeam();
   const agents = getAllAgents(activeTeam);

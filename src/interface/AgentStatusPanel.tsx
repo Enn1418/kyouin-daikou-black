@@ -1,6 +1,6 @@
 import React from 'react';
 import { getAgentSet, getAllAgents, getAllCharacters } from '../data/agents';
-import { useCoreStore } from '../integration/store/coreStore';
+import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { Avatar } from './components/Avatar';
 
@@ -11,7 +11,7 @@ interface AgentStatusPanelProps {
 }
 
 const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({ agentIndex }) => {
-  const { tasks } = useCoreStore();
+  const { tasks, agentTokenUsage } = useRoom();
   const system = useActiveTeam();
   const agents = getAllAgents(system);
 
@@ -22,7 +22,7 @@ const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({ agentIndex }) => {
     (t) => t.assignedAgentId === agentIndex && t.status === 'in_progress'
   ) ?? null;
 
-  const usage = useCoreStore.getState().agentTokenUsage[agentIndex] || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const usage = agentTokenUsage[agentIndex] || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
   return (
     <div className="flex flex-col h-full p-6">

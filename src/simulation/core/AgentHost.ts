@@ -17,6 +17,11 @@ export class AgentHost implements AgentActionContext, BrainHost {
     this.brain = new AgentBrain(this);
   }
 
+  /** この担当が属する部屋。simulation が唯一の持ち主。 */
+  public get roomId(): string {
+    return this.simulation.roomId;
+  }
+
   /** Determines if the agent is currently available to respond to user messages. */
   public canChat(): boolean {
     return this.state === 'idle';
@@ -53,7 +58,7 @@ export class AgentHost implements AgentActionContext, BrainHost {
 
   public setState(state: AgentState) {
     this.state = state;
-    useUiStore.getState().setAgentStatus(this.data.index, state);
+    useUiStore.getState().setAgentStatus(this.roomId, this.data.index, state);
   }
 
   public appendHistory(message: LLMMessage) {

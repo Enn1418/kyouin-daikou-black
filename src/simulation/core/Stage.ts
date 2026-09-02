@@ -1,6 +1,6 @@
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as THREE from 'three/webgpu';
-import { SCENE_BACKGROUND_COLOR } from '../constants';
+import { getOfficeBackground } from '../../integration/store/appearanceStore';
 
 export class Stage {
   public scene: THREE.Scene;
@@ -12,7 +12,7 @@ export class Stage {
 
   constructor(rendererElement: HTMLElement) {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(SCENE_BACKGROUND_COLOR);
+    this.scene.background = new THREE.Color(getOfficeBackground());
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
     this.camera.position.set(10, 8, 15);
@@ -60,6 +60,11 @@ export class Stage {
     dirLight.shadow.radius = 2;
     dirLight.shadow.autoUpdate = true;
     this.scene.add(dirLight);
+  }
+
+  /** 職員室の背景色を差し替える（担任が選ぶ）。 */
+  public setBackgroundColor(color: string) {
+    (this.scene.background as THREE.Color).set(color);
   }
 
   public onResize(width: number, height: number) {

@@ -1,13 +1,14 @@
-import { Send } from 'lucide-react';
+import { Mic, MicOff, Send } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getAgentSet, getAllAgents } from '../data/agents';
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand';
-import { useCoreStore } from '../integration/store/coreStore';
+import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { useSceneManager } from '../simulation/SceneContext';
+import { useSpeechInput } from '../integration/hooks/useSpeechInput';
 import { Avatar } from './components/Avatar';
 import { AuditModal } from './AuditModal';
 import { FileSearch } from 'lucide-react';
@@ -27,6 +28,7 @@ const ChatPanel: React.FC = () => {
 
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -34,9 +36,9 @@ const ChatPanel: React.FC = () => {
 
   // Combine store messages with project histories if needed,
   // but unified useCoreStore is the source of truth for history.
-  const coreStore = useCoreStore();
+  const room = useRoom();
   const chatMessages = selectedNpcIndex !== null
-    ? (coreStore.agentHistories[selectedNpcIndex] || [])
+    ? (room.agentHistories[selectedNpcIndex] || [])
     : [];
 
 
@@ -52,6 +54,17 @@ const ChatPanel: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatMessages, isThinking, isChatting]);
+
+  // 入力欄の高さ。既定の1〜2行だと打っている指示が読みにくいので、
+  // 常に最低3行ぶんを確保し、それより長ければ書いた分だけ伸ばす（上限あり）
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const MIN = 88;
+    const MAX = 200;
+    el.style.height = `${Math.min(MAX, Math.max(MIN, el.scrollHeight))}px`;
+  }, [input]);
 
   useEffect(() => {
     // Initial scroll when chat opens
@@ -86,6 +99,13 @@ const ChatPanel: React.FC = () => {
     // simulateTyping(pastedText);
     setInput(pastedText);
   };
+
+  // 音声入力。確定した発話を入力欄に追記する（打っている途中の文は上書きしない）
+  const { isSupported: isMicSupported, isListening, interimText, toggle: toggleMic } = useSpeechInput({
+    onFinalResult: (text) => {
+      setInput((prev) => (prev && !/\s$/.test(prev) ? prev + ' ' : prev) + text);
+    }
+  });
 
   const handleSend = async () => {
     if (!input.trim() || isThinking) return;
@@ -154,13 +174,13 @@ const ChatPanel: React.FC = () => {
                               <FileSearch size={18} />
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
-                              {coreStore.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold'
+                              {room.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold'
                                 ? 'Review Requested'
                                 : 'Review Processed'}
                             </span>
                           </div>
 
-                          {coreStore.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold' && (
+                          {room.tasks.find(t => t.id === msg.metadata.reviewTaskId)?.status === 'on_hold' && (
                             <button
                               onClick={() => setActiveAuditTaskId(msg.metadata.reviewTaskId)}
                               className="flex-1 min-w-[120px] px-4 py-2 bg-darkDelegation text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all shadow-sm whitespace-nowrap"
@@ -211,6 +231,8 @@ const ChatPanel: React.FC = () => {
         <div className="relative flex items-center gap-2">
           <div className="flex-1 relative">
             <textarea
+              ref={inputRef}
+              rows={3}
               value={input}
               onChange={(e) => {
                 const val = e.target.value;
@@ -233,13 +255,29 @@ const ChatPanel: React.FC = () => {
                 }
               }}
               placeholder="Message (↵ to send)"
-              className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:ring-2 transition-all resize-none pr-12 [scrollbar-width:none]"
+              className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all resize-none pr-12 overflow-y-auto"
               style={{
                 borderColor: input.trim() ? USER_COLOR : undefined,
                 boxShadow: input.trim() ? `0 0 0 2px ${USER_COLOR_LIGHT}` : undefined
               }}
             />
           </div>
+          {isMicSupported && (
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={isThinking}
+              title={isListening ? '音声入力を止める' : '音声入力（マイク）'}
+              className={`h-11 w-11 shrink-0 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${isThinking
+                ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                : isListening
+                  ? 'bg-red-50 text-red-500 animate-pulse'
+                  : 'bg-zinc-100 text-zinc-400 hover:text-darkDelegation'
+                }`}
+            >
+              {isListening ? <MicOff size={16} strokeWidth={2.5} /> : <Mic size={16} strokeWidth={2.5} />}
+            </button>
+          )}
           <button
             onClick={handleSend}
             disabled={!input.trim() || isThinking}
@@ -252,8 +290,8 @@ const ChatPanel: React.FC = () => {
             <Send size={16} strokeWidth={3} />
           </button>
         </div>
-        <p className="text-[8px] text-zinc-400 mt-2 text-center font-medium uppercase tracking-wider">
-          Shift + ↵ for new line
+        <p className="text-[8px] text-zinc-400 mt-2 text-center font-medium tracking-wider truncate">
+          {isListening && interimText ? interimText : <span className="uppercase">Shift + ↵ for new line</span>}
         </p>
       </div>
     </div>

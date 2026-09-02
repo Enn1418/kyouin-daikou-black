@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, MessageSquareWarning, Trash2, GitPullRequest
 import React, { useState } from 'react'
 import { getAllAgents, USER_NAME } from '../data/agents'
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand'
-import { useCoreStore, type Task, type TaskStatus } from '../integration/store/coreStore'
+import { useCoreStore, type Task, type TaskStatus , useRoom } from '../integration/store/coreStore'
 import { getActiveAgentSet, useTeamStore } from '../integration/store/teamStore'
 import { useUiStore } from '../integration/store/uiStore'
 import DeleteTaskModal from './DeleteTaskModal'
@@ -145,7 +145,7 @@ function TaskCard({ task }: { task: Task; key?: string }) {
 }
 
 export function KanbanPanel({ height = 320 }: KanbanPanelProps) {
-  const { tasks } = useCoreStore()
+  const { tasks } = useRoom()
 
   return (
     <div
@@ -161,10 +161,10 @@ export function KanbanPanel({ height = 320 }: KanbanPanelProps) {
               <div key={status} className="w-52 flex flex-col gap-3">
                 <div className="flex items-center justify-between shrink-0 select-none">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 leading-none">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-zinc-600 leading-none">
                       {label}
                     </span>
-                    <span className="px-1.5 py-0.5 bg-zinc-100 text-zinc-400 text-[9px] font-bold rounded-md min-w-4.5 text-center">
+                    <span className="px-1.5 py-0.5 bg-zinc-200 text-zinc-700 text-[10px] font-bold rounded-md min-w-4.5 text-center">
                       {colTasks.length}
                     </span>
                   </div>
@@ -175,8 +175,8 @@ export function KanbanPanel({ height = 320 }: KanbanPanelProps) {
                     <TaskCard key={t.id} task={t} />
                   ))}
                   {colTasks.length === 0 && (
-                    <div className="border border-dashed border-zinc-100 rounded-lg p-4 flex items-center justify-center select-none">
-                      <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Empty</span>
+                    <div className="border border-dashed border-zinc-200 rounded-lg p-4 flex items-center justify-center select-none">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Empty</span>
                     </div>
                   )}
                 </div>

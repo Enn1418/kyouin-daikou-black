@@ -30,6 +30,24 @@ export interface LLMToolDefinition {
   };
 }
 
+/**
+ * Anthropic のサーバ側ツール（web_search など）。
+ *
+ * こちらで実行するものではなく、定義をそのまま渡してあちら側で走らせる。
+ * 形が普通のツールと違うので、変換せず素通しする必要がある。
+ */
+export interface LLMServerToolDefinition {
+  type: 'server';
+  /** Anthropic の tools 配列にそのまま入れる中身。 */
+  server: Record<string, any>;
+}
+
+export type LLMAnyToolDefinition = LLMToolDefinition | LLMServerToolDefinition;
+
+export function isServerTool(t: LLMAnyToolDefinition): t is LLMServerToolDefinition {
+  return (t as LLMServerToolDefinition).type === 'server';
+}
+
 export interface LLMConfig {
   apiKey?: string;
   geminiApiKey?: string;
@@ -61,7 +79,7 @@ export interface LLMResponse {
 export interface LLMProvider {
   generateCompletion(
     messages: LLMMessage[],
-    tools?: LLMToolDefinition[],
+    tools?: LLMAnyToolDefinition[],
     systemInstruction?: string,
     modelName?: string
   ): Promise<LLMResponse>;

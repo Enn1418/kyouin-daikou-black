@@ -1,7 +1,7 @@
-import { AgentNode, AgenticSystem, getAllAgents } from '../../data/agents';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { AgenticSystem, getAllAgents } from '../../data/agents';
+import { getRoom, useCoreStore } from '../../integration/store/coreStore';
 import { AgentHost } from './AgentHost';
-import { useUiStore } from '../../integration/store/uiStore';
+import { agentStatusKey, useUiStore } from '../../integration/store/uiStore';
 
 /**
  * AgentSimulation — Autonomous Service Layer.
@@ -18,8 +18,12 @@ export class AgentSimulation {
   private heartbeatInterval: any = null;
   private lastSparkTriggerTime: number = 0;
 
+  /** この職員室（部屋）のID。状態はすべてこの部屋に読み書きする。 */
+  public readonly roomId: string;
+
   constructor(system: AgenticSystem) {
     this.system = system;
+    this.roomId = system.id;
     this.initializeAgents();
     this.startStateMonitoring();
   }
@@ -27,10 +31,10 @@ export class AgentSimulation {
   private startStateMonitoring() {
     // 1. Heartbeat safety net (Periodically check for scheduled tasks and empty boards)
     this.heartbeatInterval = setInterval(() => {
-      const state = useCoreStore.getState();
-      if (state.phase === 'working' && state.tasks.length === 0) {
+      const room = getRoom(this.roomId);
+      if (room.phase === 'working' && room.tasks.length === 0) {
         this.triggerAutonomousStrategy();
-      } else if (state.phase === 'working') {
+      } else if (room.phase === 'working') {
         this.processScheduledTasks();
       }
     }, 5000);
@@ -38,13 +42,20 @@ export class AgentSimulation {
     // 2. Core Store Monitoring
     this.unsubs.push(
       useCoreStore.subscribe((state, prevState) => {
+        // 自分の部屋に変化が無ければ何もしない（他の部屋の更新で全部屋が反応すると荒れる）
+        const room = state.rooms[this.roomId];
+        const prevRoom = prevState.rooms[this.roomId];
+        if (room === prevRoom) return;
+        const phase = room?.phase ?? 'idle';
+        const prevPhase = prevRoom?.phase ?? 'idle';
+
         // A. Initial Strategy (Spark)
-        if (state.phase === 'working' && prevState.phase === 'idle' && state.tasks.length === 0) {
+        if (phase === 'working' && prevPhase === 'idle' && (room?.tasks.length ?? 0) === 0) {
           this.triggerAutonomousStrategy();
         }
 
         // B. Task Lifecycle: Process SCHEDULED tasks
-        if (state.phase === 'working') {
+        if (phase === 'working') {
           this.processScheduledTasks();
         }
 
@@ -57,8 +68,8 @@ export class AgentSimulation {
     this.unsubs.push(
       useUiStore.subscribe((state, prevState) => {
         if (!state.isChatting && prevState.isChatting) {
-          const core = useCoreStore.getState();
-          if (core.phase === 'working' && core.tasks.length === 0) this.triggerAutonomousStrategy();
+          const room = getRoom(this.roomId);
+          if (room.phase === 'working' && room.tasks.length === 0) this.triggerAutonomousStrategy();
         }
       })
     );
@@ -66,12 +77,12 @@ export class AgentSimulation {
 
   /** Central method to check for and start available tasks. */
   public processScheduledTasks() {
-    const state = useCoreStore.getState();
-    if (state.phase !== 'working') return;
+    const room = getRoom(this.roomId);
+    if (room.phase !== 'working') return;
 
-    state.tasks.filter(t => t.status === 'scheduled' || t.status === 'in_progress').forEach(task => {
+    room.tasks.filter(t => t.status === 'scheduled' || t.status === 'in_progress').forEach(task => {
       const agent = this.getAgent(task.assignedAgentId);
-      const uiStatus = useUiStore.getState().agentStatuses[task.assignedAgentId];
+      const uiStatus = useUiStore.getState().agentStatuses[agentStatusKey(this.roomId, task.assignedAgentId)];
       
       // Resilience check: only start if agent is truly idle and not currently thinking.
       // We check both internal state and UI status as safety.
@@ -84,10 +95,10 @@ export class AgentSimulation {
   private async triggerAutonomousStrategy() {
     const lead = this.getAgent(1);
     const ui = useUiStore.getState();
-    const core = useCoreStore.getState();
+    const room = getRoom(this.roomId);
 
     // GUARD: Prevent duplication
-    if (!lead || lead.isThinking || core.tasks.length > 0) return;
+    if (!lead || lead.isThinking || room.tasks.length > 0) return;
     if (ui.isChatting && ui.selectedNpcIndex === lead.data.index) return;
     
     if (Date.now() - this.lastSparkTriggerTime < 1000) return;
@@ -100,8 +111,8 @@ export class AgentSimulation {
     const agent = this.getAgent(agentIndex);
     if (!agent) return;
 
-    agent.setTask(taskId); 
-    useCoreStore.getState().updateTaskStatus(taskId, 'in_progress');
+    agent.setTask(taskId);
+    useCoreStore.getState().updateTaskStatus(taskId, 'in_progress', this.roomId);
     
     await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
 
@@ -127,11 +138,32 @@ export class AgentSimulation {
     }
   }
 
+  /**
+   * まとめ役に一言届けて、続きを考えさせる（RoomManager.notifyLead から）。
+   *
+   * 考え中に割り込むと二重思考ガード（brain.isThinking）で黙って捨てられるので、
+   * 空くまで少し待ってから渡す。30秒待っても空かなければ諦める
+   * （その場合、CEO の次の操作で会話が動くのでそこで拾われる）。
+   */
+  public async notifyLead(message: string) {
+    const lead = this.getAgent(this.system.leadAgent.index);
+    if (!lead) return;
+    for (let i = 0; i < 30 && lead.isThinking; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (lead.isThinking) return;
+    try {
+      await lead.think(message, { silent: true });
+    } catch (err) {
+      console.error('[AgentSimulation] notifyLead failed:', err);
+    }
+  }
+
   private async checkProjectCompletion() {
-    const state = useCoreStore.getState();
-    const allTasksFinished = state.tasks.length > 0 && state.tasks.every(t => t.status === 'done');
-    
-    if (state.phase === 'working' && allTasksFinished && !state.isGeneratingAsset) {
+    const room = getRoom(this.roomId);
+    const allTasksFinished = room.tasks.length > 0 && room.tasks.every(t => t.status === 'done');
+
+    if (room.phase === 'working' && allTasksFinished && !room.isGeneratingAsset) {
       const lead = this.getAgent(this.system.leadAgent.index);
       if (lead && !lead.isThinking) {
         await lead.concludeProject();

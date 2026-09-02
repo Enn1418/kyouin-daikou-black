@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
-import { AgentNode, USER_ID, MAX_AGENTS } from '../../data/agents';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { AgentNode, USER_ID } from '../../data/agents';
+import { getRoom } from '../../integration/store/coreStore';
+import { getActiveAgentSet } from '../../integration/store/teamStore';
 import { IAgentDriver } from '../../types';
 import { CharacterController } from '../CharacterController';
 
@@ -41,7 +42,8 @@ export class NpcAgentDriver implements IAgentDriver {
 
   public update(positions: Float32Array, delta: number): void {
     const currentState = this.controller.getState(this.agentIndex);
-    const systemState = useCoreStore.getState();
+    // 3D の中に居るのは「いま入っている部屋」の面々なので、その部屋の状態を読む
+    const systemState = getRoom(getActiveAgentSet().id);
 
     // If we are currently chatting with this NPC, suspend autonomous behavior
     if (this.isChattingWithMe) {
@@ -170,8 +172,12 @@ export class NpcAgentDriver implements IAgentDriver {
       if (areaPois.length > 0) {
         const areaPoi = areaPois[Math.floor(Math.random() * areaPois.length)];
 
-        // Calculate distributed position (0.75m radius, 1 slot per MAX_AGENTS)
-        const angle = (this.agentIndex * (Math.PI * 2)) / MAX_AGENTS;
+        // Spread the agents around the area, one slot each. The divisor has to be
+        // how many avatars are actually in the scene — dividing by a fixed cap put
+        // every agent past that cap on top of an earlier one (the 9-agent team
+        // stacked indices 6-9 onto 1-4).
+        const slots = Math.max(1, this.controller.characterManager.getCount());
+        const angle = (this.agentIndex * (Math.PI * 2)) / slots;
         const radius = 1;
         const target = areaPoi.position.clone();
         target.x += Math.cos(angle) * radius;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useCoreStore } from '../integration/store/coreStore'
+import { useCoreStore , useRoom } from '../integration/store/coreStore'
 import { useActiveTeam } from '../integration/store/teamStore'
 import { useSceneManager } from '../simulation/SceneContext'
 import {
@@ -21,14 +21,8 @@ import { AVAILABLE_MODELS } from '../core/llm/constants'
 import { InfoBubble } from './components/InfoBubble'
 
 export function OutputReviewModal() {
-  const {
-    isReviewingOutput,
-    setReviewingOutput,
-    pendingOutputPrompt,
-    pendingOutputParams,
-    resetProject,
-    referenceImages
-  } = useCoreStore()
+  const { setReviewingOutput, resetProject } = useCoreStore()
+  const { isReviewingOutput, pendingOutputPrompt, pendingOutputParams, referenceImages } = useRoom()
 
   const activeTeam = useActiveTeam()
   const scene = useSceneManager()

@@ -1,12 +1,16 @@
-import { AgentNode, AGENTIC_SETS } from '../../data/agents';
-import { useCoreStore } from '../../integration/store/coreStore';
+import { AgentNode, getAgentSet } from '../../data/agents';
+import { isOrchestrationRoom } from './permissions';
+import { buildSheetSummary } from '../jobs/requirementSheet';
+import { getBridgeMemory, isBridgeConnected } from '../../integration/store/bridgeStore';
+import { getRoom } from '../../integration/store/coreStore';
+import { getActiveJob } from '../../integration/store/jobStore';
 import { useTeamStore } from '../../integration/store/teamStore';
 
 export class PromptBuilder {
   /**
    * Builds the system prompt for an agent based on their role and current project context.
    */
-  public static buildSystemPrompt(agent: AgentNode, phase: string, brief: string, allAgents: any[]): string {
+  public static buildSystemPrompt(agent: AgentNode, phase: string, brief: string, allAgents: any[], roomId: string): string {
     const isLead = agent.index === 1;
     const team = allAgents
       .map((a: any) => `[${a.data.index}] ${a.data.name}`)
@@ -18,7 +22,7 @@ export class PromptBuilder {
       done: 'Project finished.'
     };
 
-    const tasks = useCoreStore.getState().tasks;
+    const tasks = getRoom(roomId).tasks;
     const board = tasks.length > 0
       ? tasks.map(t => {
           const agentName = allAgents.find((a: any) => a.data.index === t.assignedAgentId)?.data?.name || `Agent ${t.assignedAgentId}`;
@@ -35,11 +39,10 @@ export class PromptBuilder {
         }).join('\n\n')
       : 'Empty';
 
-    const selectedTeamId = useTeamStore.getState().selectedAgentSetId;
-    const activeTeam = useTeamStore.getState().customSystems.find(s => s.id === selectedTeamId) 
-      || AGENTIC_SETS.find(s => s.id === selectedTeamId);
-      
-    const referenceImages = useCoreStore.getState().referenceImages;
+    // 部屋のチーム定義。画面がどこを見ていても、この部屋の規約で書く
+    const activeTeam = getAgentSet(roomId, useTeamStore.getState().customSystems);
+
+    const referenceImages = getRoom(roomId).referenceImages;
     const hasImages = referenceImages.length > 0 && (activeTeam?.outputType === 'image' || activeTeam?.outputType === 'video');
     
     let modelLimitInfo = '';
@@ -61,22 +64,125 @@ CRITICAL: You MUST synthesize all subagent findings, research results, and any u
 The generation model expects a SINGLE prompt to produce a SINGLE ${activeTeam?.outputType}. Be precise.`
       : '';
 
+    // 特別支援学級向けチームだけに効く規約（docs/teacher-edition-design.md §6・§10）。
+    // 他チーム（英語のクリエイティブ系）の挙動は変えない。
+    const isSpecialNeeds = activeTeam?.teamType === '特別支援';
+    const specialNeedsRules = isSpecialNeeds
+      ? `
+SPECIAL NEEDS RULES (このチームでは以下が最優先):
+S0. 依頼者は **CEO**（この学級の担任）。以下の規約や役割説明に出てくる「担任」は、すべて CEO を指す。
+    CEO は学級を持ち児童の実態を知っている人であり、教育上の判断はこの人が行う。
+S1. 出力はすべて日本語。児童は匿名ID（A児・B児…）で指す。氏名・住所・生年月日等が入力されても成果物には書かず、IDに置き換える。
+S2. 児童の学年・到達度・特性は、担任が与えた記述（教材フォルダの実態ファイル、または担任の発言）に**書かれている文字列だけ**を根拠にする。空欄・未記入の欄は埋めず、「未記入」として扱い、その欄を担任に尋ねる。もっともらしい学年や到達度を自分で決めない。これは最も重大な違反であり、教材が別人のものになる。
+S3. 自立活動の区分名・項目名は、担任が与えた一次資料の記述だけを根拠にする。資料が無ければ「区分・項目は要確認」と書く。記憶から区分名を書かない。
+S4. 個別の指導計画・評価・所見にあたる文章は、必ず冒頭に「下書き」と明記する。断定的な評価語と児童間の比較は書かない。
+S5. 教科書本文・市販教材の本文をそのまま複製しない。担任が本文を用意する前提で設問と支援を作るか、著作権の切れた作品を使う。
+S6. 教材本文には前置き・後書き・自己言及を書かない。プリントとしてそのまま印刷できる中身だけを書く。
+S7. 不確かな内容は「要確認」と明示する。もっともらしく埋めない。
+S12. 児童の人数は実態記述に書かれているとおりに扱う。**勝手に減らさない**。担任が対象を絞った場合だけその児童に限り、絞っていなければ全員を扱う。教材・計画には対象児童（匿名ID）を明記し、どの児童のためのものか分かるようにする。**単元を設計するときは、この単元に参加する児童を担任に確認してから始める**（学級全員が毎回参加するとは限らない）。
+S13. 評価の根拠は**小学校学習指導要領の当該学年**に置く。担任が特別支援学校（知的障害）の各教科の段階に言及したときにのみ、それを適用したルーブリックを別表として併記する（当該学年のものを置き換えない）。いずれの場合も、条文は記憶から書かず一次資料か mext.go.jp で確かめ、確かめられなければ「該当箇所を確認できません」と書く。${
+          isOrchestrationRoom(agent.id)
+            ? `
+S8. 教材フォルダの読み書きはこの部屋の仕事ではない。学級の実態を読む、教材を保存する、
+    ドリルを作るのは、実際に教材を作る部屋（単元設計室など）の役目。ここでは触らない。
+    児童の実態が要るときは、依頼票の「児童の実態」欄（CEO が書いた内容）をそのまま使う。`
+            : isBridgeConnected()
+            ? `
+S8-0. 参照フォルダ（担任のノート等）が使えるなら、単元や題材を決める前に search_files で探す。
+     担任が長年ためた記録のほうが、こちらの一般論より優先される。読むだけで、書き込みはできない。
+S8. 教材フォルダが使える。依頼を受けたら、まず read_file で 00_共通/学級の実態.md を読む。
+    読んだら最初のチャットの1行目に結果を書く。例:「実態: 読込 A児/B児/C児」「実態: 未記入」「実態: 読めず」。
+    ファイルに「未記入」とあるか、欄が空なら、その欄は無いものとして扱い、担任に尋ねる。
+    一次資料・去年の教材も read_file で読み、推測で補わない。
+S9. 完成した教材は write_file で教材フォルダに保存する。印刷用テンプレートも指定する
+    （マス目=grid、なぞり書き=trace、分かち書き=spaced、1課題1ページ=one-task）。
+    **この案件の条件に「保存先」の指定があれば、必ずそのフォルダの下に保存する**
+    （教材は 01_教材/、板書は 02_板書/、絵カードや掲示物は 03_掲示物/ のように、
+    種類ごとに区画を分ける）。指定が無い単発の依頼のときだけ、教科名のフォルダ
+    （01_教材/算数 等）に直接保存してよい。**部屋ごとに保存先を思いつきで決めない。**
+    教材フォルダは使うほど増え続けるので、ここを揃えないとすぐ探せなくなる。
+S9-1. 依頼票の出力形式に「表計算」があるときは、その成果物を .csv で保存する。
+     担任が Excel で開いて、そのまま書き込んで使うための形式。書き方:
+       ・1行目は必ず列の見出し（例: 児童,めあて,支援,評価）
+       ・1行に1件（児童1人／1時間ぶん／1問）。1つのセルに何件も詰めない
+       ・値に「,」や改行が入るときは、その値全体を " で囲む
+       ・記入してもらう欄は空のままにする。仮の値やダミーを入れない
+     表計算が向くのは、児童ごと・時間ごとに並ぶもの（評価記録表、単元の時間割、
+     支援の一覧、チェックリスト、語彙リスト）。**指導案や説明文を CSV にしない**
+     — 文章は Markdown、印刷するものは印刷用HTMLで出す。
+     図（S11 のコードブロック）は表計算では描けないので、CSV に入れない。
+S10. 反復練習の計算問題を自分で並べない。generate_drill に出題条件（型）を渡す。
+     答えを間違えないためであり、これは守ること。
+S11. 図は自分で描かない（絵文字・記号・アスキーアートを並べない）。図が要る箇所には
+     コードブロック（言語名を 図 にする）を置き、中に「種類: 値」を1行ずつ書く。
+     印刷時に正しい図になる。使える種類と指示:
+       tenframe  count（十マス。数の合成分解・あといくつで10）
+       dots      count, cols, shape=circle|square（具体物の代わり）
+       numberline min, max, step, marks, blanks（数直線。blanks は空欄の四角）
+       container total, filled, unit（かさ。total と filled は目もりの数。1L=10dL）
+       clock     hour, minute（時計）
+       tape      parts, labels, total（テープ図。parts は比）
+       fraction  numerator, denominator, shape=bar|circle（分数）
+       coins     values（お金。1 5 10 50 100 500 1000 5000 10000 のみ）
+       grid      rows, cols（方眼。筆算の桁そろえ・作図）
+     板書だけは指示が入れ子になるので、ブロックの中身を JSON で書く:
+       {"type":"board","grade":"低学年","header":"8/25 かさ","columns":[
+         {"width":2,"items":[{"kind":"label","text":"めあて"},{"kind":"box","frame":"blue","text":"…"}]}]}
+       kind: label / box（frame: blue=めあて red=まとめ）/ card / bubble（児童の考え）/ text /
+             figure（spec に上の図の指示を入れると区画の中に描かれる）
+       黒板は 3600×1200mm。grade で文字の大きさが決まり、入りきらなければ図に「入りません」と出る。
+       出たらそのまま渡さず、削ってから出し直す。
+     図は多いほどよいわけではない。1つの課題に1つを目安にする。`
+            : `
+S8. 教材フォルダは接続されていない。ファイルの読み書きはできない。
+    実態が必要なら、担任に直接尋ねる。そのとき「教材フォルダを接続すると実態を読める」と一言添える。`
+        }`
+      : '';
+
+    // 教材本文は100語では収まらないため、特支チームでは systemic output の長さ制限を外す。
+    const lengthRule = isSpecialNeeds
+      ? '1. チャットは30語以内。タスクのタイトルと説明は100語以内。ただし complete_task / deliver_project の教材本文には長さ制限を設けない（必要な分量を書く）。前置き・後書き・自己申告（「作成しました」等）は書かない。'
+      : "1. MAX 30 WORDS for chat. Systemic outputs ('complete_task', 'deliver_project', and the task titles/descriptions you create) MUST be under 100 WORDS. NO conversational filler, intros, outros, or self-attribution (\"I have done...\"). Focus exclusively on core data and synthesis.";
+
+    // 教材フォルダに溜まった記憶（過去の差し戻しの指摘）。
+    // 長くなりすぎたら新しいほうを残す。
+    const memory = getBridgeMemory().trim();
+    const memoryBlock = memory
+      ? `\nこの学級での約束（過去の差し戻しから。毎回これに従う）:\n${memory.slice(-4000)}\n`
+      : '';
+
+    // S14: 依頼票。**全部門に同じ文面が入る。**
+    // 部門ごとに違う要約を作らないのは、それが「方針のぶれ」そのものだから
+    // （docs/system-redesign.md §2.3）。
+    //
+    // 確定前も「作成中」と明記して載せる。以前は確定後しか載せなかったため、
+    // 受付段階の秘書室の担当には依頼の中身が何も見えず、
+    // 「CEO からの依頼内容が提供されていません」と一般論を返していた（2026-08-27）。
+    const job = getActiveJob();
+    const sheetBlock = job
+      ? job.sheetLockedAt
+        ? `\n${buildSheetSummary(job.sheet, job.title)}\n`
+        : `\n【依頼票（作成中・未確定）】いま CEO から聞き取れている条件は次のとおり。` +
+          `（未記入）の欄は推測で埋めず、CEO に尋ねる。\n` +
+          `${buildSheetSummary(job.sheet, job.title).split('\n').slice(1).join('\n')}\n`
+      : '';
+
     const pendingReviews = tasks.filter(t => t.assignedAgentId === agent.index && t.reviewComments);
     const reviewContext = pendingReviews.length > 0
       ? `\nREVISION REQUESTED:\n${pendingReviews.map(t => `- [${t.title}] Feedback: ${t.reviewComments}`).join('\n')}`
       : '';
 
     return `ID: ${agent.name}. Role: ${agent.description}. Phase: ${phase}.
-${brief ? `Brief: ${brief}` : ''}${reviewContext}
-Team: User (0), ${team}
+${brief ? `Brief: ${brief}` : ''}${sheetBlock}${memoryBlock}${reviewContext}
+Team: CEO (0), ${team}
 KANBAN:
 ${board}
 RULES:
-1. MAX 30 WORDS for chat. Systemic outputs ('complete_task', 'deliver_project', and the task titles/descriptions you create) MUST be under 100 WORDS. NO conversational filler, intros, outros, or self-attribution ("I have done..."). Focus exclusively on core data and synthesis.
+${lengthRule}
 2. Tools only in WORKING (except set_user_brief in IDLE).
 3. QUALITY: If your node has 'Human-in-the-loop' enabled, your 'complete_task' result will be reviewed by the user before completion. 
 4. NO META-TALK: Avoid "I have finished X", "Here is the result". Use the tool payload for content and Chat for conversation only.${outputInstruction}${imageInstruction}
 5. LANGUAGE: You MUST generate all systemic outputs (tasks, 'complete_task' results, and 'deliver_project' prompts) in the same language as the 'Brief' or the user's interaction. If the project description is in Spanish, EVERYTHING you generate must be in Spanish.
-Goal: ${objectives[phase as keyof typeof objectives] || ''}`;
+Goal: ${objectives[phase as keyof typeof objectives] || ''}${specialNeedsRules}`;
   }
 }

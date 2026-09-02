@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { getAgentSet, getAllCharacters } from '../data/agents';
 import { USER_COLOR, USER_COLOR_LIGHT, USER_COLOR_SOFT } from '../theme/brand';
 import { useChatAvailability } from '../integration/hooks/useChatAvailability';
-import { useCoreStore } from '../integration/store/coreStore';
+import { useCoreStore , useRoom } from '../integration/store/coreStore';
 import { useTeamStore, useActiveTeam } from '../integration/store/teamStore';
 import { useUiStore } from '../integration/store/uiStore';
 import { useSceneManager } from '../simulation/SceneContext';
@@ -20,7 +20,8 @@ interface InspectorPanelProps {
 const InspectorPanel: React.FC<InspectorPanelProps> = ({ isFloating }) => {
   const { selectedNpcIndex, isChatting } = useUiStore();
   const scene = useSceneManager();
-  const { phase, setFinalOutputOpen, tasks } = useCoreStore();
+  const { setFinalOutputOpen } = useCoreStore();
+  const { phase, tasks } = useRoom();
   const system = useActiveTeam();
   const agents = getAllCharacters(system);
   const { canChat, reason } = useChatAvailability(selectedNpcIndex);

@@ -14,9 +14,9 @@ export function proposeTask(agent: AgentActionContext, args: { title: string, de
     assignedAgentId: finalAgentId,
     status: 'scheduled',
     requiresUserApproval: requiresApproval || false
-  });
+  }, agent.roomId);
 
-  store.addLogEntry({ agentIndex: agent.data.index, action: `proposed task: "${title}"`, taskId: newTask.id });
+  store.addLogEntry({ agentIndex: agent.data.index, action: `proposed task: "${title}"`, taskId: newTask.id }, agent.roomId);
   
   return true;
 }

@@ -1,21 +1,21 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useCoreStore } from '../integration/store/coreStore'
+import { useCoreStore , useRoom } from '../integration/store/coreStore'
 import { useActiveTeam } from '../integration/store/teamStore'
 import { Loader2, Download } from 'lucide-react'
 import { TeamOutputBadge } from './components/TeamOutputBadge'
 
 export function FinalOutputModal() {
+  const { setFinalOutputOpen } = useCoreStore()
   const {
     isFinalOutputOpen,
-    setFinalOutputOpen,
     finalOutput,
     finalAssetType,
     finalAssetContent,
     isGeneratingAsset,
     referenceImages
-  } = useCoreStore()
+  } = useRoom()
   const activeTeam = useActiveTeam()
   const [copied, setCopied] = useState(false)
 

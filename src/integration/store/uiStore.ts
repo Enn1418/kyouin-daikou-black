@@ -4,6 +4,9 @@ import { AgentState, CharacterState } from '../../types';
 import { useTeamStore, getActiveAgentSet } from './teamStore';
 import { DEFAULT_MODELS } from '../../core/llm/constants';
 
+/** 担当の様子の鍵。部屋を跨ぐと同じ番号の担当が居るので、部屋IDと組にする。 */
+export const agentStatusKey = (roomId: string, index: number) => `${roomId}:${index}`;
+
 export const useUiStore = create<CharacterState>()(
   (set) => ({
     isThinking: false,
@@ -21,14 +24,15 @@ export const useUiStore = create<CharacterState>()(
     chatMessages: [],
     inspectorTab: 'info',
     agentStatuses: {},
-    setAgentStatus: (index: number, status: AgentState) => set((s) => ({
-      agentStatuses: { ...s.agentStatuses, [index]: status }
+    setAgentStatus: (roomId: string, index: number, status: AgentState) => set((s) => ({
+      agentStatuses: { ...s.agentStatuses, [agentStatusKey(roomId, index)]: status }
     })),
 
     isBYOKOpen: false,
     byokError: null,
-    setBYOKOpen: (open: boolean, error: string | null = null) =>
-      set({ isBYOKOpen: open, byokError: error }),
+    byokFocus: 'keys',
+    setBYOKOpen: (open: boolean, error: string | null = null, focus: 'keys' | 'folder' = 'keys') =>
+      set({ isBYOKOpen: open, byokError: error, byokFocus: focus }),
 
     activeAuditTaskId: null,
     setActiveAuditTaskId: (taskId: string | null) => set({ activeAuditTaskId: taskId }),

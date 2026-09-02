@@ -4,9 +4,13 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { autoConnectBridge } from './core/bridge/bridgeClient';
+import { getOfficeTheme, useAppearanceStore } from './integration/store/appearanceStore';
 import { useCoreStore } from './integration/store/coreStore';
 import { ActionLogPanel } from './interface/ActionLogPanel';
+import CharacterBook from './interface/CharacterBook';
 import { FinalOutputModal } from './interface/FinalOutputModal';
+import FloorView from './interface/FloorView';
 import Header from './interface/Header';
 import InspectorPanel from './interface/InspectorPanel';
 import { KanbanPanel } from './interface/KanbanPanel';
@@ -15,6 +19,7 @@ import SimulationView from './interface/SimulationView';
 import { VisualConfigurator } from './interface/VisualConfigurator/VisualConfigurator';
 import { SceneContext } from './simulation/SceneContext';
 import { SceneManager } from './simulation/SceneManager';
+import { workflowEngine } from './core/workflow/WorkflowEngine';
 
 
 const App: React.FC = () => {
@@ -55,6 +60,24 @@ const App: React.FC = () => {
     };
   }, [resize, stopResizing]);
 
+  // 職員室の背景色。担任が選んだものを 3D 側へ渡す
+  const officeThemeId = useAppearanceStore((s) => s.themeId);
+  useEffect(() => {
+    sceneManager?.setBackgroundColor(getOfficeTheme(officeThemeId).background);
+  }, [sceneManager, officeThemeId]);
+
+  // 教材フォルダのブリッジは起動のたびに繋ぎ直す（設定済みなら CEO の操作は要らない）
+  useEffect(() => {
+    void autoConnectBridge();
+  }, []);
+
+  // ワークフロー制御層。案件の工程を進めるのはこれだけで、
+  // 承認①を通っていない案件には手を出さない（docs/system-redesign.md §3）
+  useEffect(() => {
+    workflowEngine.start();
+    return () => workflowEngine.stop();
+  }, []);
+
   useEffect(() => {
     if (canvasRef.current && !managerRef.current) {
       const manager = new SceneManager(canvasRef.current);
@@ -79,15 +102,20 @@ const App: React.FC = () => {
 
         <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
           {/* Left: Log panel */}
-          {isLogOpen && !isFullscreen && viewMode !== 'design' && <ActionLogPanel />}
+          {isLogOpen && !isFullscreen && viewMode === 'simulation' && <ActionLogPanel />}
 
           {/* Center: canvas + kanban drawer stacked */}
           <div className="relative flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-zinc-50">
 
+            {/* フロア図（全部屋の俯瞰）。既定の画面 */}
+            {viewMode === 'floor' && <FloorView />}
+
+            {/* 担当図鑑。誰に何を頼めるかの索引 */}
+            {viewMode === 'characters' && <CharacterBook />}
+
             {/* Simulation Context - Persistently Mounted */}
             <div
-              className="flex-1 flex flex-col min-w-0 min-h-0"
-              style={{ visibility: viewMode === 'design' ? 'hidden' : 'visible' }}
+              className={viewMode === 'simulation' ? 'flex-1 flex flex-col min-w-0 min-h-0' : 'hidden'}
             >
               <SimulationView canvasRef={canvasRef} isFullscreen={isFullscreen} setIsFullscreen={setIsFullscreen} />
 
@@ -106,7 +134,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Right: Inspector sidebar */}
-          {!isFullscreen && viewMode !== 'design' && <InspectorPanel />}
+          {!isFullscreen && viewMode === 'simulation' && <InspectorPanel />}
         </div>
 
         {/* Design Mode Overlay (Modal) */}
